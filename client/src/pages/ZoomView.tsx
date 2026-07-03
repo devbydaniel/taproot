@@ -1,0 +1,116 @@
+import { segmentText, type ZoomPayload } from '@taproot/shared';
+import { ChevronRight } from 'lucide-react';
+import { Fragment, useEffect, useState } from 'react';
+import { Link } from 'wouter';
+import * as actions from '@/actions';
+import { BlockEditor } from '@/components/BlockEditor';
+import { OutlineTree } from '@/components/OutlineTree';
+import { StaticText } from '@/components/StaticText';
+import { api } from '@/lib/api';
+import { hasChildren, visibleOrder, type OutlineCtx } from '@/lib/outline';
+import { useStore } from '@/store';
+
+function renderedPreview(text: string, max = 40): string {
+  const rendered = segmentText(text)
+    .map((segment) => (segment.type === 'text' ? segment.value : segment.title))
+    .join('');
+  if (rendered.trim() === '') return 'Untitled';
+  return rendered.length > max ? `${rendered.slice(0, max)}…` : rendered;
+}
+
+export function ZoomView({ id }: { id: string }) {
+  const [payload, setPayload] = useState<ZoomPayload | null>(null);
+  const [notFound, setNotFound] = useState(false);
+  const remoteEpoch = useStore((s) => s.remoteEpoch);
+  const liveBlock = useStore((s) => s.blocks[id]);
+  const isTitleFocused = useStore((s) => s.focused?.blockId === id);
+  const setFocus = useStore((s) => s.setFocus);
+  const hasBlocks = useStore((s) =>
+    Object.values(s.blocks).some((b) => b.parentId === id),
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .getBlock(id)
+      .then((data) => {
+        if (cancelled) return;
+        useStore.getState().mergeBlocks(data.blocks);
+        setPayload(data);
+      })
+      .catch(() => setNotFound(true));
+    return () => {
+      cancelled = true;
+    };
+  }, [id, remoteEpoch]);
+
+  if (notFound) {
+    return (
+      <p className="p-10 text-muted-foreground">This block does not exist.</p>
+    );
+  }
+  if (!payload) return null;
+
+  const ctx: OutlineCtx = { pageId: payload.page.id, rootParentId: id };
+  const titleText = liveBlock?.text ?? payload.block.text;
+
+  const clickBelow = () => {
+    const { blocks } = useStore.getState();
+    const order = visibleOrder(blocks, ctx);
+    const last = order[order.length - 1];
+    if (last && last.text === '' && !hasChildren(blocks, last.id)) {
+      useStore.getState().setFocus({ blockId: last.id, cursor: 'end' });
+    } else {
+      actions.appendBlock(ctx);
+    }
+  };
+
+  return (
+    <div className="mx-auto max-w-3xl px-8 py-10">
+      <nav className="mb-4 flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
+        <Link
+          href={`/p/${payload.page.id}`}
+          className="hover:text-foreground hover:underline"
+        >
+          {payload.page.title}
+        </Link>
+        {payload.ancestors.map((ancestor) => (
+          <Fragment key={ancestor.id}>
+            <ChevronRight className="h-3.5 w-3.5" />
+            <Link
+              href={`/b/${ancestor.id}`}
+              className="hover:text-foreground hover:underline"
+            >
+              {renderedPreview(ancestor.text)}
+            </Link>
+          </Fragment>
+        ))}
+      </nav>
+
+      <div className="mb-6">
+        {isTitleFocused ? (
+          <BlockEditor blockId={id} ctx={ctx} variant="title" />
+        ) : (
+          <h1
+            className="cursor-text text-3xl font-bold tracking-tight"
+            onClick={() => setFocus({ blockId: id, cursor: 'end' })}
+          >
+            <StaticText text={titleText} />
+          </h1>
+        )}
+      </div>
+
+      {hasBlocks ? (
+        <OutlineTree parentId={id} ctx={ctx} />
+      ) : (
+        <button
+          onClick={() => actions.appendBlock(ctx)}
+          className="cursor-text text-sm text-muted-foreground hover:text-foreground"
+        >
+          Click to start writing…
+        </button>
+      )}
+      <div className="h-24 cursor-text" onClick={clickBelow} />
+    </div>
+  );
+}
