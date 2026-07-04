@@ -1,8 +1,13 @@
 import type { Op } from '@taproot/shared';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createStore, type Store } from './db.js';
-import { applyOps, ensurePage } from './ops.js';
-import { getPagePayload, getZoomPayload, listPages } from './queries.js';
+import { applyOps, ensurePage, reindexTasks } from './ops.js';
+import {
+  getPagePayload,
+  getTaskGroups,
+  getZoomPayload,
+  listPages,
+} from './queries.js';
 
 let store: Store;
 
@@ -219,5 +224,83 @@ describe('applyOps', () => {
     expect(zoom?.ancestors.map((b) => b.id)).toEqual(['top']);
     expect(zoom?.blocks.map((b) => b.id).sort()).toEqual(['leaf', 'mid']);
     expect(zoom?.page.title).toBe('Home');
+  });
+});
+
+describe('task index', () => {
+  const block = (
+    id: string,
+    pageId: string,
+    text: string,
+    parentId: string | null = null,
+  ): Op => ({
+    type: 'create_block',
+    id,
+    pageId,
+    parentId,
+    orderKey: id,
+    text,
+  });
+
+  it('indexes TODO blocks and aggregates them by page', () => {
+    const home = setupPage('Home');
+    const work = setupPage('Work');
+    applyOps(store, [
+      block('t1', home.id, 'TODO buy milk'),
+      block('t2', work.id, 'TODO ship release'),
+      block('t3', work.id, 'plain note'),
+    ]);
+
+    const groups = getTaskGroups(store);
+    expect(groups.map((g) => g.page.title)).toEqual(['Home', 'Work']);
+    expect(groups[1]?.rootIds).toEqual(['t2']);
+  });
+
+  it('includes the subtree of a task and folds nested tasks', () => {
+    const home = setupPage('Home');
+    applyOps(store, [
+      block('outer', home.id, 'TODO plan trip'),
+      block('inner', home.id, 'TODO book hotel', 'outer'),
+      block('note', home.id, 'flights are cheap tuesday', 'outer'),
+    ]);
+
+    const groups = getTaskGroups(store);
+    expect(groups[0]?.rootIds).toEqual(['outer']);
+    expect(groups[0]?.blocks.map((b) => b.id).sort()).toEqual([
+      'inner',
+      'note',
+      'outer',
+    ]);
+  });
+
+  it('drops tasks from the open list when marked DONE and clears completedAt on reopen', () => {
+    const home = setupPage('Home');
+    applyOps(store, [block('t1', home.id, 'TODO x')]);
+    applyOps(store, [{ type: 'update_text', id: 't1', text: 'DONE x' }]);
+    expect(getTaskGroups(store)).toHaveLength(0);
+
+    applyOps(store, [{ type: 'update_text', id: 't1', text: 'TODO x' }]);
+    expect(getTaskGroups(store)[0]?.rootIds).toEqual(['t1']);
+  });
+
+  it('removes the index entry when the marker is removed or the block deleted', () => {
+    const home = setupPage('Home');
+    applyOps(store, [
+      block('t1', home.id, 'TODO x'),
+      block('t2', home.id, 'TODO y'),
+    ]);
+    applyOps(store, [{ type: 'update_text', id: 't1', text: 'x' }]);
+    applyOps(store, [{ type: 'delete_block', id: 't2' }]);
+    expect(getTaskGroups(store)).toHaveLength(0);
+  });
+
+  it('backfills via reindexTasks', () => {
+    const home = setupPage('Home');
+    applyOps(store, [block('t1', home.id, 'TODO x')]);
+    // simulate a database whose index is missing/stale
+    store.sqlite.exec('DELETE FROM tasks');
+    expect(getTaskGroups(store)).toHaveLength(0);
+    reindexTasks(store);
+    expect(getTaskGroups(store)[0]?.rootIds).toEqual(['t1']);
   });
 });

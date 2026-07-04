@@ -1,4 +1,10 @@
-import type { Op, Page, PagePayload, ZoomPayload } from '@taproot/shared';
+import type {
+  LinkedRefGroup,
+  Op,
+  Page,
+  PagePayload,
+  ZoomPayload,
+} from '@taproot/shared';
 import { nanoid } from 'nanoid';
 
 /** identifies this browser tab so it can ignore its own ops echoed over the websocket */
@@ -18,6 +24,7 @@ export const api = {
     getJson<PagePayload>(`/api/pages/${encodeURIComponent(id)}`),
   getBlock: (id: string) =>
     getJson<ZoomPayload>(`/api/blocks/${encodeURIComponent(id)}`),
+  getTasks: () => getJson<{ groups: LinkedRefGroup[] }>('/api/tasks'),
   postOps: (ops: Op[]) =>
     fetch('/api/ops', {
       method: 'POST',

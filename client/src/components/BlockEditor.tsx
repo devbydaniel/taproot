@@ -8,6 +8,7 @@ import {
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { EditorState, Prec } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
+import { cycleTaskState } from '@taproot/shared';
 import { useEffect, useRef } from 'react';
 import * as actions from '@/actions';
 import type { OutlineCtx } from '@/lib/outline';
@@ -145,6 +146,24 @@ export function BlockEditor({
             if (!selection.empty || selection.head !== view.state.doc.length)
               return false;
             return actions.focusNeighbor(blockId, 1, ctx, 'start');
+          },
+        },
+        {
+          // cycle task state: plain → TODO → DONE → plain
+          key: 'Mod-Enter',
+          run: (view) => {
+            const old = view.state.doc.toString();
+            const next = cycleTaskState(old);
+            const head = view.state.selection.main.head;
+            const anchor = Math.max(
+              0,
+              Math.min(next.length, head + (next.length - old.length)),
+            );
+            view.dispatch({
+              changes: { from: 0, to: old.length, insert: next },
+              selection: { anchor },
+            });
+            return true;
           },
         },
         {

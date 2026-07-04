@@ -5,6 +5,7 @@ A self-hosted fractal outliner — Roam-style outlining in a single container.
 - **`[[Wiki links]]`** anywhere in a bullet; pages are auto-created on first mention
 - **Fractal zoom** — click any bullet dot to make that block the page (breadcrumbs lead back up)
 - **Linked references** — every page lists the bullets (with their subtrees) that mention it
+- **Tasks** — start a bullet with `TODO` to make it a task (checkbox in the UI, Cmd-Enter cycles TODO → DONE); all open tasks aggregate in the Tasks view, grouped by page with age hints
 - **Keyboard-first** — Enter splits, Tab/Shift-Tab indent/outdent, Backspace deletes empty bullets, arrows cross block boundaries, `[[` autocompletes page titles
 
 ## Stack

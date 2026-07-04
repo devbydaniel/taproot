@@ -12,6 +12,7 @@ export interface Block {
   /** fractional index key; siblings sort lexicographically */
   orderKey: string;
   text: string;
+  createdAt: number;
   updatedAt: number;
 }
 

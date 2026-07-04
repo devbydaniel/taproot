@@ -38,6 +38,7 @@ function applyOpToBlocks(
           parentId: op.parentId,
           orderKey: op.orderKey,
           text: op.text,
+          createdAt: Date.now(),
           updatedAt: Date.now(),
         },
       };

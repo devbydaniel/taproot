@@ -1,4 +1,4 @@
-import type { Op } from '@taproot/shared';
+import { parseTask, withTaskState, type Op } from '@taproot/shared';
 import { generateKeyBetween } from 'fractional-indexing';
 import { nanoid } from 'nanoid';
 import { api } from '@/lib/api';
@@ -42,6 +42,21 @@ export function flushText() {
   }));
   pendingText.clear();
   void api.postOps(ops);
+}
+
+/** Checkbox click: flip TODO ↔ DONE (only defined for blocks that are tasks). */
+export function toggleTaskCheckbox(blockId: string) {
+  const { blocks } = useStore.getState();
+  const block = blocks[blockId];
+  if (!block) return;
+  const parsed = parseTask(block.text);
+  if (!parsed) return;
+  const text = withTaskState(
+    block.text,
+    parsed.state === 'TODO' ? 'DONE' : 'TODO',
+  );
+  flushText();
+  dispatch([{ type: 'update_text', id: blockId, text }]);
 }
 
 // --- structural edits ---

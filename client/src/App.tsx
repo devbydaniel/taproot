@@ -4,6 +4,7 @@ import { Sidebar } from '@/components/Sidebar';
 import { api } from '@/lib/api';
 import { startWs } from '@/lib/ws';
 import { PageView } from '@/pages/PageView';
+import { TasksView } from '@/pages/TasksView';
 import { ZoomView } from '@/pages/ZoomView';
 
 function HomeRedirect() {
@@ -26,6 +27,7 @@ export function App() {
       <Sidebar />
       <main className="min-w-0 flex-1 overflow-y-auto">
         <Switch>
+          <Route path="/tasks" component={TasksView} />
           <Route path="/p/:id">
             {(params) => <PageView key={params.id} id={params.id} />}
           </Route>

@@ -62,6 +62,14 @@ export function seedIfEmpty(store: Store) {
       {
         text: 'Every mention of a page shows up at the bottom of that page under Linked References — try opening [[Ideas]].',
       },
+      {
+        text: 'Start a bullet with TODO to make it a task — all open tasks aggregate in the Tasks view.',
+        children: [
+          {
+            text: 'TODO Check this off — click the checkbox or press Cmd-Enter.',
+          },
+        ],
+      },
     ]),
   );
   applyOps(store, ops);

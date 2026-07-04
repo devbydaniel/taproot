@@ -1,8 +1,13 @@
-import { extractWikilinks, type Op, type Page } from '@taproot/shared';
+import {
+  extractWikilinks,
+  parseTask,
+  type Op,
+  type Page,
+} from '@taproot/shared';
 import { eq } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import type { Store } from './db.js';
-import { blocks, pages, refs } from './schema.js';
+import { blocks, pages, refs, tasks } from './schema.js';
 
 export function ensurePage(store: Store, title: string): Page {
   const existing = store.db
@@ -27,6 +32,44 @@ function updateRefs(store: Store, blockId: string, text: string) {
       .onConflictDoNothing()
       .run();
   }
+}
+
+/** Re-derive the task index for one block from its TODO/DONE marker. */
+function updateTaskIndex(store: Store, blockId: string, text: string) {
+  const parsed = parseTask(text);
+  if (!parsed) {
+    store.db.delete(tasks).where(eq(tasks.blockId, blockId)).run();
+    return;
+  }
+  const existing = store.db
+    .select()
+    .from(tasks)
+    .where(eq(tasks.blockId, blockId))
+    .get();
+  const completedAt =
+    parsed.state === 'DONE'
+      ? existing?.state === 'DONE'
+        ? existing.completedAt
+        : Date.now()
+      : null;
+  store.db
+    .insert(tasks)
+    .values({ blockId, state: parsed.state, completedAt })
+    .onConflictDoUpdate({
+      target: tasks.blockId,
+      set: { state: parsed.state, completedAt },
+    })
+    .run();
+}
+
+/** Rebuild the whole task index (startup backfill so pre-task databases heal). */
+export function reindexTasks(store: Store) {
+  store.sqlite.transaction(() => {
+    store.db.delete(tasks).run();
+    for (const block of store.db.select().from(blocks).all()) {
+      updateTaskIndex(store, block.id, block.text);
+    }
+  })();
 }
 
 function wouldCreateCycle(
@@ -73,6 +116,7 @@ function applyOp(store: Store, op: Op) {
         .onConflictDoNothing()
         .run();
       updateRefs(store, op.id, op.text);
+      updateTaskIndex(store, op.id, op.text);
       break;
     }
     case 'update_text': {
@@ -82,6 +126,7 @@ function applyOp(store: Store, op: Op) {
         .where(eq(blocks.id, op.id))
         .run();
       updateRefs(store, op.id, op.text);
+      updateTaskIndex(store, op.id, op.text);
       break;
     }
     case 'move_block': {

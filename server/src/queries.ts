@@ -6,7 +6,7 @@ import type {
 } from '@taproot/shared';
 import { asc, eq } from 'drizzle-orm';
 import type { Store } from './db.js';
-import { blocks, pages, refs } from './schema.js';
+import { blocks, pages, refs, tasks } from './schema.js';
 
 export function listPages(store: Store) {
   return store.db.select().from(pages).orderBy(asc(pages.title)).all();
@@ -48,15 +48,8 @@ function collectSubtree(
   return result;
 }
 
-function linkedRefGroups(store: Store, pageId: string): LinkedRefGroup[] {
-  const matching = store.db
-    .select({ block: blocks })
-    .from(refs)
-    .innerJoin(blocks, eq(refs.blockId, blocks.id))
-    .where(eq(refs.pageId, pageId))
-    .all()
-    .map((row) => row.block);
-
+/** Group matching blocks by their page, each root carrying its full subtree. */
+function groupByPage(store: Store, matching: Block[]): LinkedRefGroup[] {
   const bySourcePage = new Map<string, Block[]>();
   for (const block of matching) {
     const group = bySourcePage.get(block.pageId) ?? [];
@@ -104,6 +97,29 @@ function linkedRefGroups(store: Store, pageId: string): LinkedRefGroup[] {
     groups.push({ page, rootIds: roots.map((b) => b.id), blocks: groupBlocks });
   }
   return groups.sort((a, b) => a.page.title.localeCompare(b.page.title));
+}
+
+function linkedRefGroups(store: Store, pageId: string): LinkedRefGroup[] {
+  const matching = store.db
+    .select({ block: blocks })
+    .from(refs)
+    .innerJoin(blocks, eq(refs.blockId, blocks.id))
+    .where(eq(refs.pageId, pageId))
+    .all()
+    .map((row) => row.block);
+  return groupByPage(store, matching);
+}
+
+/** All open (TODO) tasks across the graph, grouped by page. */
+export function getTaskGroups(store: Store): LinkedRefGroup[] {
+  const matching = store.db
+    .select({ block: blocks })
+    .from(tasks)
+    .innerJoin(blocks, eq(tasks.blockId, blocks.id))
+    .where(eq(tasks.state, 'TODO'))
+    .all()
+    .map((row) => row.block);
+  return groupByPage(store, matching);
 }
 
 export function getPagePayload(

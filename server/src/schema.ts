@@ -31,6 +31,18 @@ export const blocks = sqliteTable(
   ],
 );
 
+export const tasks = sqliteTable(
+  'tasks',
+  {
+    blockId: text('block_id')
+      .primaryKey()
+      .references(() => blocks.id, { onDelete: 'cascade' }),
+    state: text('state').notNull(),
+    completedAt: integer('completed_at'),
+  },
+  (table) => [index('idx_tasks_state').on(table.state)],
+);
+
 export const refs = sqliteTable(
   'refs',
   {

@@ -1,7 +1,8 @@
 import type { Block, LinkedRefGroup } from '@taproot/shared';
 import { useMemo } from 'react';
 import { Link } from 'wouter';
-import { StaticText } from './StaticText';
+import { useStore } from '@/store';
+import { BlockContent } from './BlockContent';
 
 export function LinkedRefs({ groups }: { groups: LinkedRefGroup[] }) {
   const count = groups.reduce((sum, group) => sum + group.rootIds.length, 0);
@@ -17,13 +18,22 @@ export function LinkedRefs({ groups }: { groups: LinkedRefGroup[] }) {
           and the bullet will show up here.
         </p>
       ) : (
-        groups.map((group) => <RefGroup key={group.page.id} group={group} />)
+        groups.map((group) => (
+          <RefGroupCard key={group.page.id} group={group} />
+        ))
       )}
     </section>
   );
 }
 
-function RefGroup({ group }: { group: LinkedRefGroup }) {
+/** One page's worth of read-only outline; also used by the Tasks view. */
+export function RefGroupCard({
+  group,
+  showAge = false,
+}: {
+  group: LinkedRefGroup;
+  showAge?: boolean;
+}) {
   const byParent = useMemo(() => {
     const map = new Map<string, Block[]>();
     for (const block of group.blocks) {
@@ -51,20 +61,36 @@ function RefGroup({ group }: { group: LinkedRefGroup }) {
         {group.page.title}
       </Link>
       {roots.map((root) => (
-        <RefRow key={root.id} block={root} byParent={byParent} />
+        <RefRow
+          key={root.id}
+          block={root}
+          byParent={byParent}
+          showAge={showAge}
+        />
       ))}
     </div>
   );
 }
 
+function ageLabel(createdAt: number): string | null {
+  const days = Math.floor((Date.now() - createdAt) / 86_400_000);
+  if (days < 2) return null;
+  return days < 14 ? `${days}d` : `${Math.floor(days / 7)}w`;
+}
+
 function RefRow({
   block,
   byParent,
+  showAge = false,
 }: {
   block: Block;
   byParent: Map<string, Block[]>;
+  showAge?: boolean;
 }) {
+  // prefer the store's copy so checkbox toggles render immediately
+  const live = useStore((s) => s.blocks[block.id]) ?? block;
   const children = byParent.get(block.id) ?? [];
+  const age = showAge ? ageLabel(live.createdAt) : null;
   return (
     <div>
       <div className="flex items-start gap-1.5 py-[3px]">
@@ -76,7 +102,15 @@ function RefRow({
           <span className="block h-[6px] w-[6px] rounded-full bg-muted-foreground/70" />
         </Link>
         <div className="min-w-0 flex-1 leading-6">
-          <StaticText text={block.text} />
+          <BlockContent block={live} />
+          {age && (
+            <span
+              title="Age of this task"
+              className="ml-2 rounded-sm bg-muted px-1 py-0.5 text-[11px] text-muted-foreground/80"
+            >
+              {age}
+            </span>
+          )}
         </div>
       </div>
       {children.length > 0 && (

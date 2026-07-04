@@ -13,6 +13,7 @@ Self-hosted fractal outliner (Roam-style). TypeScript npm-workspaces monorepo.
 - **All writes are ops** (`shared/src/types.ts` → `Op`). Client applies them optimistically (`client/src/actions.ts` → `dispatch`), POSTs to `/api/ops`, server applies transactionally (`server/src/ops.ts`) and broadcasts over `/ws`. Clients ignore their own echo via `clientId`. Never add a write path that bypasses ops.
 - **IDs are client-generated** (nanoid). **Sibling order is fractional-index strings** (`fractional-indexing`), never integers.
 - **`refs` is derived state**: rebuilt per block from `[[wikilinks]]` on every create/update in `ops.ts`. Referenced pages are auto-created (`ensurePage`). If you change wikilink syntax, change `shared/src/wikilinks.ts` only.
+- **`tasks` is derived state too**: a block is a task iff its text starts with `TODO `/`DONE ` (`shared/src/tasks.ts`), indexed in `updateTaskIndex` alongside refs and rebuilt at startup by `reindexTasks`. Task state changes are plain `update_text` ops — never a separate write path.
 - Text updates are debounced 400 ms in `actions.ts`; structural ops must call `flushText()` first to preserve ordering.
 - Blocks are single-line: Enter is intercepted, pasted newlines are stripped by the `singleLine` transaction filter in `BlockEditor.tsx`.
 

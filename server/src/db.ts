@@ -27,6 +27,12 @@ CREATE TABLE IF NOT EXISTS refs (
   page_id TEXT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
   PRIMARY KEY (block_id, page_id)
 );
+CREATE TABLE IF NOT EXISTS tasks (
+  block_id TEXT PRIMARY KEY REFERENCES blocks(id) ON DELETE CASCADE,
+  state TEXT NOT NULL,
+  completed_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_tasks_state ON tasks(state);
 CREATE INDEX IF NOT EXISTS idx_blocks_page ON blocks(page_id);
 CREATE INDEX IF NOT EXISTS idx_blocks_parent ON blocks(parent_id);
 CREATE INDEX IF NOT EXISTS idx_refs_page ON refs(page_id);

@@ -1,4 +1,4 @@
-import { Plus, Sprout } from 'lucide-react';
+import { ListTodo, Plus, Sprout } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { api } from '@/lib/api';
@@ -48,6 +48,20 @@ export function Sidebar() {
           <Plus className="h-4 w-4" />
         </button>
       </form>
+      <nav className="px-2 pb-2">
+        <Link
+          href="/tasks"
+          className={cn(
+            'flex items-center gap-2 rounded-md px-2 py-1 text-sm transition-colors',
+            location === '/tasks'
+              ? 'bg-accent font-medium text-accent-foreground'
+              : 'text-foreground/80 hover:bg-accent/60',
+          )}
+        >
+          <ListTodo className="h-4 w-4" />
+          Tasks
+        </Link>
+      </nav>
       <nav className="flex-1 overflow-y-auto px-2 pb-4">
         <p className="px-2 pb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
           Pages

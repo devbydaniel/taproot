@@ -1,11 +1,11 @@
-import type { Block } from '@taproot/shared';
+import { parseTask, type Block } from '@taproot/shared';
 import { useRef } from 'react';
 import { Link } from 'wouter';
 import { renderedOffsetFromPoint, renderedToRaw } from '@/lib/clickpos';
 import { childrenOf, type OutlineCtx } from '@/lib/outline';
 import { useStore } from '@/store';
+import { BlockContent } from './BlockContent';
 import { BlockEditor } from './BlockEditor';
-import { StaticText } from './StaticText';
 
 export function OutlineTree({
   parentId,
@@ -34,8 +34,12 @@ function BlockRow({ block, ctx }: { block: Block; ctx: OutlineCtx }) {
   const setFocus = useStore((s) => s.setFocus);
 
   const focusAtPoint = (event: React.MouseEvent) => {
-    if ((event.target as Element).closest('a')) return;
+    if ((event.target as Element).closest('a,button')) return;
     const container = contentRef.current;
+    // a task marker is hidden in rendered mode, so map clicks within the
+    // visible rest and shift by the hidden prefix length
+    const visible = parseTask(block.text)?.rest ?? block.text;
+    const prefixLength = block.text.length - visible.length;
     let cursor: number | 'end' = 'end';
     if (container) {
       const rendered = renderedOffsetFromPoint(
@@ -43,7 +47,8 @@ function BlockRow({ block, ctx }: { block: Block; ctx: OutlineCtx }) {
         event.clientX,
         event.clientY,
       );
-      if (rendered != null) cursor = renderedToRaw(block.text, rendered);
+      if (rendered != null)
+        cursor = renderedToRaw(visible, rendered) + prefixLength;
     }
     setFocus({ blockId: block.id, cursor });
   };
@@ -73,7 +78,7 @@ function BlockRow({ block, ctx }: { block: Block; ctx: OutlineCtx }) {
           {isFocused ? (
             <BlockEditor blockId={block.id} ctx={ctx} />
           ) : (
-            <StaticText text={block.text} />
+            <BlockContent block={block} />
           )}
         </div>
       </div>

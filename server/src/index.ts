@@ -8,8 +8,13 @@ import { existsSync } from 'node:fs';
 import { relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createStore } from './db.js';
-import { applyOps, ensurePage } from './ops.js';
-import { getPagePayload, getZoomPayload, listPages } from './queries.js';
+import { applyOps, ensurePage, reindexTasks } from './ops.js';
+import {
+  getPagePayload,
+  getTaskGroups,
+  getZoomPayload,
+  listPages,
+} from './queries.js';
 import { seedIfEmpty } from './seed.js';
 
 const dbPath =
@@ -17,6 +22,7 @@ const dbPath =
   fileURLToPath(new URL('../../data/taproot.db', import.meta.url));
 const store = createStore(dbPath);
 seedIfEmpty(store);
+reindexTasks(store); // heal databases created before the task index existed
 
 const app = new Hono();
 const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app });
@@ -42,6 +48,8 @@ app.get(
 const api = new Hono();
 
 api.get('/pages', (c) => c.json(listPages(store)));
+
+api.get('/tasks', (c) => c.json({ groups: getTaskGroups(store) }));
 
 api.get('/pages/by-title/:title', (c) => {
   const title = c.req.param('title').trim();

@@ -22,6 +22,11 @@ export function PageView({ id }: { id: string }) {
       .then((data) => {
         if (cancelled) return;
         useStore.getState().loadPageBlocks(id, data.blocks);
+        // linked-ref blocks live on other pages; merge them so checkbox
+        // toggles in the references section render immediately
+        useStore
+          .getState()
+          .mergeBlocks(data.linkedRefs.flatMap((g) => g.blocks));
         setPayload(data);
       })
       .catch(() => setNotFound(true));
