@@ -1,42 +1,55 @@
-import type {
-  JournalPayload,
-  LinkedRefGroup,
-  Op,
-  Page,
-  PagePayload,
-  ZoomPayload,
-} from '@taproot/shared';
+import type { ApiType } from '@taproot/server';
+import type { Op } from '@taproot/shared';
+import { hc } from 'hono/client';
 import { nanoid } from 'nanoid';
 
 /** identifies this browser tab so it can ignore its own ops echoed over the websocket */
 export const clientId = nanoid();
 
-async function getJson<T>(url: string): Promise<T> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`${res.status} ${url}`);
-  return (await res.json()) as T;
+const client = hc<ApiType>('/api');
+
+type SuccessBody<R> = R extends { ok: true; json: () => Promise<infer T> }
+  ? T
+  : never;
+
+/** throw on error responses, narrowing the result to the 2xx body type */
+async function unwrap<
+  R extends { ok: boolean; status: number; url: string } & {
+    json: () => Promise<unknown>;
+  },
+>(promise: Promise<R>): Promise<SuccessBody<R>> {
+  const res = await promise;
+  if (!res.ok) throw new Error(`${res.status} ${res.url}`);
+  return (await res.json()) as SuccessBody<R>;
 }
 
 export const api = {
-  listPages: () => getJson<Page[]>('/api/pages'),
+  listPages: () => unwrap(client.pages.$get()),
   pageByTitle: (title: string) =>
-    getJson<Page>(`/api/pages/by-title/${encodeURIComponent(title)}`),
+    unwrap(
+      client.pages['by-title'][':title'].$get({
+        // hc substitutes params without escaping them; titles can contain anything
+        param: { title: encodeURIComponent(title) },
+      }),
+    ),
   getPage: (id: string) =>
-    getJson<PagePayload>(`/api/pages/${encodeURIComponent(id)}`),
+    unwrap(client.pages[':id'].$get({ param: { id: encodeURIComponent(id) } })),
   getBlock: (id: string) =>
-    getJson<ZoomPayload>(`/api/blocks/${encodeURIComponent(id)}`),
-  getTasks: () => getJson<{ groups: LinkedRefGroup[] }>('/api/tasks'),
-  getJournal: (opts: { before?: string; limit?: number } = {}) => {
-    const params = new URLSearchParams();
-    if (opts.before) params.set('before', opts.before);
-    if (opts.limit) params.set('limit', String(opts.limit));
-    const query = params.toString();
-    return getJson<JournalPayload>(`/api/journal${query ? `?${query}` : ''}`);
-  },
+    unwrap(
+      client.blocks[':id'].$get({ param: { id: encodeURIComponent(id) } }),
+    ),
+  getTasks: () => unwrap(client.tasks.$get()),
+  getJournal: (opts: { before?: string; limit?: number } = {}) =>
+    unwrap(
+      client.journal.$get({
+        query: {
+          before: opts.before,
+          limit: opts.limit === undefined ? undefined : String(opts.limit),
+        },
+      }),
+    ),
   postOps: (ops: Op[]) =>
-    fetch('/api/ops', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ clientId, ops }),
-    }).catch((err: unknown) => console.error('failed to send ops', err)),
+    client.ops
+      .$post({ json: { clientId, ops } })
+      .catch((err: unknown) => console.error('failed to send ops', err)),
 };

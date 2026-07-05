@@ -1,25 +1,15 @@
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { createNodeWebSocket } from '@hono/node-ws';
-import {
-  isDailyTitle,
-  opsRequestSchema,
-  type OpsBroadcast,
-} from '@taproot/shared';
+import type { OpsBroadcast } from '@taproot/shared';
 import { Hono } from 'hono';
 import type { WSContext } from 'hono/ws';
 import { existsSync } from 'node:fs';
 import { relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createApi } from './app.js';
 import { createStore } from './db.js';
-import { applyOps, ensurePage, reindexTasks } from './ops.js';
-import {
-  getJournal,
-  getPagePayload,
-  getTaskGroups,
-  getZoomPayload,
-  listPages,
-} from './queries.js';
+import { reindexTasks } from './ops.js';
 import { seedIfEmpty } from './seed.js';
 
 const dbPath =
@@ -50,52 +40,7 @@ app.get(
   })),
 );
 
-const api = new Hono();
-
-api.get('/pages', (c) => c.json(listPages(store)));
-
-api.get('/tasks', (c) => c.json({ groups: getTaskGroups(store) }));
-
-api.get('/journal', (c) => {
-  const before = c.req.query('before');
-  if (before !== undefined && !isDailyTitle(before)) {
-    return c.json({ error: 'before must be an ISO date title' }, 400);
-  }
-  const limitRaw = c.req.query('limit');
-  const limit = limitRaw === undefined ? undefined : Number(limitRaw);
-  return c.json(getJournal(store, { before, limit }));
-});
-
-api.get('/pages/by-title/:title', (c) => {
-  const title = c.req.param('title').trim();
-  if (!title) return c.json({ error: 'empty title' }, 400);
-  return c.json(ensurePage(store, title));
-});
-
-api.get('/pages/:id', (c) => {
-  const payload = getPagePayload(store, c.req.param('id'));
-  return payload ? c.json(payload) : c.json({ error: 'not found' }, 404);
-});
-
-api.get('/blocks/:id', (c) => {
-  const payload = getZoomPayload(store, c.req.param('id'));
-  return payload ? c.json(payload) : c.json({ error: 'not found' }, 404);
-});
-
-api.post('/ops', async (c) => {
-  const parsed = opsRequestSchema.safeParse(
-    await c.req.json().catch(() => null),
-  );
-  if (!parsed.success) {
-    return c.json({ error: 'invalid ops request' }, 400);
-  }
-  const { clientId, ops } = parsed.data;
-  applyOps(store, ops);
-  broadcast({ type: 'ops', clientId, ops });
-  return c.json({ ok: true });
-});
-
-app.route('/api', api);
+app.route('/api', createApi(store, broadcast));
 
 // serve the built client when present (production / docker)
 const clientDist = fileURLToPath(new URL('../../client/dist', import.meta.url));

@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "main": "./src/app.ts",
+  "types": "./src/app.ts",
+  "exports": {
+    ".": "./src/app.ts"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
@@ -11,13 +16,15 @@
   "dependencies": {
     "@hono/node-server": "^1.13.7",
     "@hono/node-ws": "^1.0.4",
+    "@hono/zod-validator": "^0.7.4",
     "@taproot/shared": "*",
     "better-sqlite3": "^12.4.1",
     "drizzle-orm": "^0.38.3",
     "fractional-indexing": "^3.2.0",
     "hono": "^4.6.14",
     "nanoid": "^5.0.9",
-    "tsx": "^4.19.2"
+    "tsx": "^4.19.2",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.12",
