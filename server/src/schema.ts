@@ -1,4 +1,5 @@
 import {
+  foreignKey,
   index,
   integer,
   primaryKey,
@@ -19,6 +20,7 @@ export const blocks = sqliteTable(
     pageId: text('page_id')
       .notNull()
       .references(() => pages.id, { onDelete: 'cascade' }),
+    // deleting a block cascades to its whole subtree via this self-reference
     parentId: text('parent_id'),
     orderKey: text('order_key').notNull(),
     text: text('text').notNull().default(''),
@@ -28,6 +30,11 @@ export const blocks = sqliteTable(
   (table) => [
     index('idx_blocks_page').on(table.pageId),
     index('idx_blocks_parent').on(table.parentId),
+    foreignKey({
+      columns: [table.parentId],
+      foreignColumns: [table.id],
+      name: 'blocks_parent_id_fk',
+    }).onDelete('cascade'),
   ],
 );
 

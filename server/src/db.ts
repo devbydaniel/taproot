@@ -3,40 +3,15 @@ import {
   drizzle,
   type BetterSQLite3Database,
 } from 'drizzle-orm/better-sqlite3';
+import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import * as schema from './schema.js';
 
-const BOOTSTRAP = `
-CREATE TABLE IF NOT EXISTS pages (
-  id TEXT PRIMARY KEY,
-  title TEXT NOT NULL UNIQUE,
-  created_at INTEGER NOT NULL
-);
-CREATE TABLE IF NOT EXISTS blocks (
-  id TEXT PRIMARY KEY,
-  page_id TEXT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
-  parent_id TEXT REFERENCES blocks(id) ON DELETE CASCADE,
-  order_key TEXT NOT NULL,
-  text TEXT NOT NULL DEFAULT '',
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
-);
-CREATE TABLE IF NOT EXISTS refs (
-  block_id TEXT NOT NULL REFERENCES blocks(id) ON DELETE CASCADE,
-  page_id TEXT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
-  PRIMARY KEY (block_id, page_id)
-);
-CREATE TABLE IF NOT EXISTS tasks (
-  block_id TEXT PRIMARY KEY REFERENCES blocks(id) ON DELETE CASCADE,
-  state TEXT NOT NULL,
-  completed_at INTEGER
-);
-CREATE INDEX IF NOT EXISTS idx_tasks_state ON tasks(state);
-CREATE INDEX IF NOT EXISTS idx_blocks_page ON blocks(page_id);
-CREATE INDEX IF NOT EXISTS idx_blocks_parent ON blocks(parent_id);
-CREATE INDEX IF NOT EXISTS idx_refs_page ON refs(page_id);
-`;
+// schema.ts is the single source of truth; DDL lives in generated migrations.
+// after changing schema.ts run: npm run db:generate -w server
+const migrationsFolder = fileURLToPath(new URL('../drizzle', import.meta.url));
 
 export interface Store {
   db: BetterSQLite3Database<typeof schema>;
@@ -48,6 +23,7 @@ export function createStore(path: string): Store {
   const sqlite = new Database(path);
   sqlite.pragma('journal_mode = WAL');
   sqlite.pragma('foreign_keys = ON');
-  sqlite.exec(BOOTSTRAP);
-  return { db: drizzle(sqlite, { schema }), sqlite };
+  const db = drizzle(sqlite, { schema });
+  migrate(db, { migrationsFolder });
+  return { db, sqlite };
 }
