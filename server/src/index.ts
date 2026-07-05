@@ -20,6 +20,7 @@ seedIfEmpty(store);
 reindexTasks(store); // heal databases created before the task index existed
 
 const app = new Hono();
+// eslint-disable-next-line @typescript-eslint/unbound-method -- plain closures from the factory, not `this`-bound methods
 const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app });
 
 const sockets = new Set<WSContext>();

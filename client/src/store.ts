@@ -1,7 +1,7 @@
 import type { Block, Op, Page } from '@taproot/shared';
 import { create } from 'zustand';
 
-export interface FocusTarget {
+interface FocusTarget {
   blockId: string;
   /** character offset in the raw text, or 'start' / 'end' */
   cursor: number | 'start' | 'end';
@@ -20,6 +20,29 @@ interface OutlineState {
   applyOps: (ops: Op[]) => void;
   bumpRemoteEpoch: () => void;
   setFocus: (target: FocusTarget | null) => void;
+}
+
+/** the subtree rooted at rootId, found by fixpoint since blocks is unordered */
+function collectSubtree(
+  blocks: Record<string, Block>,
+  rootId: string,
+): Set<string> {
+  const doomed = new Set([rootId]);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const block of Object.values(blocks)) {
+      if (
+        block.parentId &&
+        doomed.has(block.parentId) &&
+        !doomed.has(block.id)
+      ) {
+        doomed.add(block.id);
+        grew = true;
+      }
+    }
+  }
+  return doomed;
 }
 
 function applyOpToBlocks(
@@ -65,21 +88,7 @@ function applyOpToBlocks(
     }
     case 'delete_block': {
       // mirror the server's cascade: drop the block and all descendants
-      const doomed = new Set([op.id]);
-      let grew = true;
-      while (grew) {
-        grew = false;
-        for (const block of Object.values(blocks)) {
-          if (
-            block.parentId &&
-            doomed.has(block.parentId) &&
-            !doomed.has(block.id)
-          ) {
-            doomed.add(block.id);
-            grew = true;
-          }
-        }
-      }
+      const doomed = collectSubtree(blocks, op.id);
       const next: Record<string, Block> = {};
       for (const block of Object.values(blocks)) {
         if (!doomed.has(block.id)) next[block.id] = block;

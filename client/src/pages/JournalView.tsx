@@ -21,6 +21,7 @@ export function JournalView() {
     void (async () => {
       await api.pageByTitle(todayTitle()); // ensure today's page exists
       const data = await api.getJournal({ limit: loadedLimit.current });
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- set by the cleanup closure; TS can't see cross-closure writes
       if (cancelled) return;
       const store = useStore.getState();
       for (const day of data.days)
@@ -42,7 +43,7 @@ export function JournalView() {
     });
     const store = useStore.getState();
     for (const day of data.days) store.loadPageBlocks(day.page.id, day.blocks);
-    setDays([...(days ?? []), ...data.days]);
+    setDays([...days, ...data.days]);
     setHasMore(data.hasMore);
     loadedLimit.current += data.days.length;
   };

@@ -16,6 +16,7 @@ function connect() {
   ws.onmessage = (event) => {
     try {
       const message = JSON.parse(event.data as string) as OpsBroadcast;
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- the cast is an assumption; the payload is unvalidated wire JSON
       if (message.type !== 'ops' || message.clientId === clientId) return;
       useStore.getState().applyOps(message.ops);
       useStore.getState().bumpRemoteEpoch();

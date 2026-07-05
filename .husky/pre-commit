@@ -1,0 +1,11 @@
+set -e
+
+npx lint-staged
+npm run typecheck
+
+# secret scan — CI runs it unconditionally; locally skip if not installed
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged --no-banner
+else
+  echo "gitleaks not installed — skipping local secret scan"
+fi

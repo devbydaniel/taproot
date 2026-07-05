@@ -15,7 +15,6 @@
     "@codemirror/view": "^6.36.1",
     "@taproot/server": "*",
     "@taproot/shared": "*",
-    "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "fractional-indexing": "^3.2.0",
     "hono": "^4.6.14",

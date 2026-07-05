@@ -18,7 +18,7 @@ export function todayTitle(now: Date = new Date()): string {
 function parseDailyTitle(title: string): Date | null {
   if (!DAILY_TITLE_RE.test(title)) return null;
   const [year, month, day] = title.split('-').map(Number);
-  const date = new Date(year!, month! - 1, day!);
+  const date = new Date(year!, month! - 1, day);
   // Date rolls over out-of-range components (2026-02-30 → Mar 2), so a
   // round-trip mismatch means the title wasn't a real date
   return formatDailyTitle(date) === title ? date : null;

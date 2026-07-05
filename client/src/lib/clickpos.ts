@@ -17,12 +17,14 @@ export function renderedOffsetFromPoint(
       y: number,
     ) => { offsetNode: Node; offset: number } | null;
   };
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- feature detection: Safari < 18 lacks caretPositionFromPoint
   if (doc.caretPositionFromPoint) {
     const position = doc.caretPositionFromPoint(x, y);
     if (position) {
       node = position.offsetNode;
       offset = position.offset;
     }
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- feature detection: deprecated fallback is absent in some engines
   } else if (document.caretRangeFromPoint) {
     const range = document.caretRangeFromPoint(x, y);
     if (range) {

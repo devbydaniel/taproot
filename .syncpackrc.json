@@ -1,0 +1,9 @@
+{
+  "versionGroups": [
+    {
+      "label": "internal packages are linked by npm workspaces via *",
+      "dependencies": ["@taproot/*"],
+      "isIgnored": true
+    }
+  ]
+}

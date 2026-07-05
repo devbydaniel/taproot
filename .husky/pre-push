@@ -1,0 +1,5 @@
+set -e
+
+npm test
+npm run dup
+npm run knip
