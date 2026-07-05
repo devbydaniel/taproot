@@ -304,11 +304,49 @@ describe('task index', () => {
     reindexTasks(store);
     expect(getTaskGroups(store)[0]?.rootIds).toEqual(['t1']);
   });
+
+  it('preserves completedAt of DONE tasks across reindexTasks', () => {
+    const home = setupPage('Home');
+    applyOps(store, [block('t1', home.id, 'TODO x')]);
+    applyOps(store, [{ type: 'update_text', id: 't1', text: 'DONE x' }]);
+    store.sqlite
+      .prepare('UPDATE tasks SET completed_at = ? WHERE block_id = ?')
+      .run(123, 't1');
+
+    reindexTasks(store);
+
+    const row = store.sqlite
+      .prepare(
+        'SELECT completed_at AS completedAt FROM tasks WHERE block_id = ?',
+      )
+      .get('t1') as { completedAt: number };
+    expect(row.completedAt).toBe(123);
+  });
+
+  it('drops index entries whose block no longer parses as a task', () => {
+    const home = setupPage('Home');
+    applyOps(store, [
+      block('t1', home.id, 'TODO x'),
+      block('t2', home.id, 'TODOx not a task'),
+    ]);
+    // simulate a stale index: t1's marker was removed behind the index's
+    // back, t2 was wrongly indexed
+    store.sqlite
+      .prepare("UPDATE blocks SET text = 'plain' WHERE id = ?")
+      .run('t1');
+    store.sqlite
+      .prepare("INSERT INTO tasks (block_id, state) VALUES ('t2', 'TODO')")
+      .run();
+
+    reindexTasks(store);
+    expect(getTaskGroups(store)).toHaveLength(0);
+  });
 });
 
 describe('getJournal', () => {
   it('returns only daily pages, newest first, with their blocks', () => {
     setupPage('Welcome');
+    setupPage('2026 goals'); // starts with digits but not date-shaped
     setupPage('2026-02-30'); // date-shaped but not a real date
     const day1 = setupPage('2026-07-01');
     setupPage('2026-07-03');

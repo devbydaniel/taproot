@@ -6,7 +6,7 @@ import {
   type PagePayload,
   type ZoomPayload,
 } from '@taproot/shared';
-import { asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, lt, sql } from 'drizzle-orm';
 import type { Store } from './db.js';
 import { blocks, pages, refs, tasks } from './schema.js';
 
@@ -21,6 +21,17 @@ function getPageBlocks(store: Store, pageId: string): Block[] {
     .where(eq(blocks.pageId, pageId))
     .orderBy(asc(blocks.orderKey))
     .all();
+}
+
+/** pageId -> its blocks, preserving the input (orderKey) order */
+function blocksByPageMap(list: Block[]): Map<string, Block[]> {
+  const map = new Map<string, Block[]>();
+  for (const block of list) {
+    const pageBlocks = map.get(block.pageId) ?? [];
+    pageBlocks.push(block);
+    map.set(block.pageId, pageBlocks);
+  }
+  return map;
 }
 
 /** parentId (or null for top level) -> children sorted by orderKey */
@@ -52,22 +63,33 @@ function collectSubtree(
 
 /** Group matching blocks by their page, each root carrying its full subtree. */
 function groupByPage(store: Store, matching: Block[]): LinkedRefGroup[] {
-  const bySourcePage = new Map<string, Block[]>();
-  for (const block of matching) {
-    const group = bySourcePage.get(block.pageId) ?? [];
-    group.push(block);
-    bySourcePage.set(block.pageId, group);
-  }
+  const bySourcePage = blocksByPageMap(matching);
+  if (bySourcePage.size === 0) return [];
+
+  // one batched fetch per table instead of two queries per source page
+  const sourcePageIds = [...bySourcePage.keys()];
+  const pageById = new Map(
+    store.db
+      .select()
+      .from(pages)
+      .where(inArray(pages.id, sourcePageIds))
+      .all()
+      .map((page) => [page.id, page]),
+  );
+  const blocksBySourcePage = blocksByPageMap(
+    store.db
+      .select()
+      .from(blocks)
+      .where(inArray(blocks.pageId, sourcePageIds))
+      .orderBy(asc(blocks.orderKey))
+      .all(),
+  );
 
   const groups: LinkedRefGroup[] = [];
   for (const [sourcePageId, pageMatches] of bySourcePage) {
-    const page = store.db
-      .select()
-      .from(pages)
-      .where(eq(pages.id, sourcePageId))
-      .get();
+    const page = pageById.get(sourcePageId);
     if (!page) continue;
-    const pageBlocks = getPageBlocks(store, sourcePageId);
+    const pageBlocks = blocksBySourcePage.get(sourcePageId) ?? [];
     const byId = new Map(pageBlocks.map((b) => [b.id, b]));
     const map = childrenMap(pageBlocks);
     const matchIds = new Set(pageMatches.map((b) => b.id));
@@ -124,6 +146,9 @@ export function getTaskGroups(store: Store): LinkedRefGroup[] {
   return groupByPage(store, matching);
 }
 
+/** SQLite GLOB for date-shaped titles; isDailyTitle stays the source of truth. */
+const DAILY_TITLE_GLOB = '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]';
+
 /**
  * Recent daily pages (ISO-date titles sort chronologically as strings),
  * newest first, with title-cursor pagination. Empty days are returned as
@@ -136,19 +161,51 @@ export function getJournal(
   const limit = Number.isFinite(opts.limit)
     ? Math.min(Math.max(Math.floor(opts.limit!), 1), 100)
     : 20;
-  const daily = store.db
+  // the '0' <= title < ':' range lets SQLite walk the unique title index
+  // (digits sort just below ':'), GLOB narrows to date-shaped titles, and
+  // isDailyTitle below rejects impossible dates (2026-02-30) the pattern
+  // can't. fetching limit + 1 answers hasMore without counting everything;
+  // an impossible-date title in the window can make hasMore err toward
+  // true, costing one empty follow-up fetch at worst.
+  const candidates = store.db
     .select()
     .from(pages)
+    .where(
+      and(
+        gte(pages.title, '0'),
+        lt(pages.title, ':'),
+        sql`${pages.title} GLOB ${DAILY_TITLE_GLOB}`,
+        opts.before !== undefined ? lt(pages.title, opts.before) : undefined,
+      ),
+    )
     .orderBy(desc(pages.title))
-    .all()
+    .limit(limit + 1)
+    .all();
+  const hasMore = candidates.length > limit;
+  const days = candidates
     .filter((page) => isDailyTitle(page.title))
-    .filter((page) => (opts.before ? page.title < opts.before : true));
+    .slice(0, limit);
+  if (days.length === 0) return { days: [], hasMore };
+
+  const dayBlocks = blocksByPageMap(
+    store.db
+      .select()
+      .from(blocks)
+      .where(
+        inArray(
+          blocks.pageId,
+          days.map((page) => page.id),
+        ),
+      )
+      .orderBy(asc(blocks.orderKey))
+      .all(),
+  );
   return {
-    days: daily.slice(0, limit).map((page) => ({
+    days: days.map((page) => ({
       page,
-      blocks: getPageBlocks(store, page.id),
+      blocks: dayBlocks.get(page.id) ?? [],
     })),
-    hasMore: daily.length > limit,
+    hasMore,
   };
 }
 

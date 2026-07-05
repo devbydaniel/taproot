@@ -3,6 +3,7 @@ import {
   parseTask,
   type Op,
   type Page,
+  type TaskState,
 } from '@taproot/shared';
 import { eq } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
@@ -62,12 +63,55 @@ function updateTaskIndex(store: Store, blockId: string, text: string) {
     .run();
 }
 
-/** Rebuild the whole task index (startup backfill so pre-task databases heal). */
+/**
+ * Reconcile the task index with block texts (startup backfill so pre-task
+ * databases heal). Diffs against the existing index instead of rebuilding,
+ * so completedAt timestamps survive restarts.
+ */
 export function reindexTasks(store: Store) {
   store.sqlite.transaction(() => {
-    store.db.delete(tasks).run();
-    for (const block of store.db.select().from(blocks).all()) {
-      updateTaskIndex(store, block.id, block.text);
+    // narrow SQL-side superset of what parseTask accepts ('TODOx…' slips
+    // through the LIKE but is rejected below) — parseTask stays the single
+    // definition of "what is a task"
+    const candidates = store.sqlite
+      .prepare(
+        `SELECT id, text FROM blocks WHERE text LIKE 'TODO%' OR text LIKE 'DONE%'`,
+      )
+      .all() as { id: string; text: string }[];
+    const parsed = new Map<string, TaskState>();
+    for (const { id, text } of candidates) {
+      const task = parseTask(text);
+      if (task) parsed.set(id, task.state);
+    }
+
+    const indexed = store.sqlite
+      .prepare('SELECT block_id AS blockId FROM tasks')
+      .all() as { blockId: string }[];
+    const deleteStale = store.sqlite.prepare(
+      'DELETE FROM tasks WHERE block_id = ?',
+    );
+    for (const { blockId } of indexed) {
+      if (!parsed.has(blockId)) deleteStale.run(blockId);
+    }
+
+    const upsert = store.sqlite.prepare(`
+      INSERT INTO tasks (block_id, state, completed_at)
+      VALUES (@blockId, @state, @completedAt)
+      ON CONFLICT(block_id) DO UPDATE SET
+        state = excluded.state,
+        completed_at = CASE
+          WHEN excluded.state != 'DONE' THEN NULL
+          WHEN tasks.state = 'DONE' THEN tasks.completed_at
+          ELSE excluded.completed_at
+        END
+    `);
+    const now = Date.now();
+    for (const [blockId, state] of parsed) {
+      upsert.run({
+        blockId,
+        state,
+        completedAt: state === 'DONE' ? now : null,
+      });
     }
   })();
 }
