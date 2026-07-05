@@ -1,7 +1,11 @@
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { createNodeWebSocket } from '@hono/node-ws';
-import type { OpsBroadcast, OpsRequest } from '@taproot/shared';
+import {
+  isDailyTitle,
+  type OpsBroadcast,
+  type OpsRequest,
+} from '@taproot/shared';
 import { Hono } from 'hono';
 import type { WSContext } from 'hono/ws';
 import { existsSync } from 'node:fs';
@@ -10,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { createStore } from './db.js';
 import { applyOps, ensurePage, reindexTasks } from './ops.js';
 import {
+  getJournal,
   getPagePayload,
   getTaskGroups,
   getZoomPayload,
@@ -50,6 +55,16 @@ const api = new Hono();
 api.get('/pages', (c) => c.json(listPages(store)));
 
 api.get('/tasks', (c) => c.json({ groups: getTaskGroups(store) }));
+
+api.get('/journal', (c) => {
+  const before = c.req.query('before');
+  if (before !== undefined && !isDailyTitle(before)) {
+    return c.json({ error: 'before must be an ISO date title' }, 400);
+  }
+  const limitRaw = c.req.query('limit');
+  const limit = limitRaw === undefined ? undefined : Number(limitRaw);
+  return c.json(getJournal(store, { before, limit }));
+});
 
 api.get('/pages/by-title/:title', (c) => {
   const title = c.req.param('title').trim();

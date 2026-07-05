@@ -1,4 +1,5 @@
 import type {
+  JournalPayload,
   LinkedRefGroup,
   Op,
   Page,
@@ -25,6 +26,13 @@ export const api = {
   getBlock: (id: string) =>
     getJson<ZoomPayload>(`/api/blocks/${encodeURIComponent(id)}`),
   getTasks: () => getJson<{ groups: LinkedRefGroup[] }>('/api/tasks'),
+  getJournal: (opts: { before?: string; limit?: number } = {}) => {
+    const params = new URLSearchParams();
+    if (opts.before) params.set('before', opts.before);
+    if (opts.limit) params.set('limit', String(opts.limit));
+    const query = params.toString();
+    return getJson<JournalPayload>(`/api/journal${query ? `?${query}` : ''}`);
+  },
   postOps: (ops: Op[]) =>
     fetch('/api/ops', {
       method: 'POST',

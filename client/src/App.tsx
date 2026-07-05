@@ -1,8 +1,10 @@
+import { todayTitle } from '@taproot/shared';
 import { useEffect } from 'react';
 import { Route, Switch, useLocation } from 'wouter';
 import { Sidebar } from '@/components/Sidebar';
 import { api } from '@/lib/api';
 import { startWs } from '@/lib/ws';
+import { JournalView } from '@/pages/JournalView';
 import { PageView } from '@/pages/PageView';
 import { TasksView } from '@/pages/TasksView';
 import { ZoomView } from '@/pages/ZoomView';
@@ -10,8 +12,10 @@ import { ZoomView } from '@/pages/ZoomView';
 function HomeRedirect() {
   const [, navigate] = useLocation();
   useEffect(() => {
+    // today's title is computed here (not at module load) so an app opened
+    // after midnight lands on the new day
     void api
-      .pageByTitle('Welcome')
+      .pageByTitle(todayTitle())
       .then((page) => navigate(`/p/${page.id}`, { replace: true }));
   }, [navigate]);
   return null;
@@ -27,6 +31,7 @@ export function App() {
       <Sidebar />
       <main className="min-w-0 flex-1 overflow-y-auto">
         <Switch>
+          <Route path="/journal" component={JournalView} />
           <Route path="/tasks" component={TasksView} />
           <Route path="/p/:id">
             {(params) => <PageView key={params.id} id={params.id} />}

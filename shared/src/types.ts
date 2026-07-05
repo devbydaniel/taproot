@@ -61,6 +61,18 @@ export interface LinkedRefGroup {
   blocks: Block[];
 }
 
+/** One day of the journal: a daily page plus its full flat block list. */
+export interface JournalDay {
+  page: Page;
+  blocks: Block[];
+}
+
+export interface JournalPayload {
+  /** daily pages, newest first */
+  days: JournalDay[];
+  hasMore: boolean;
+}
+
 export interface PagePayload {
   page: Page;
   blocks: Block[];

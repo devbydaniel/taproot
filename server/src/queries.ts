@@ -1,10 +1,12 @@
-import type {
-  Block,
-  LinkedRefGroup,
-  PagePayload,
-  ZoomPayload,
+import {
+  isDailyTitle,
+  type Block,
+  type JournalPayload,
+  type LinkedRefGroup,
+  type PagePayload,
+  type ZoomPayload,
 } from '@taproot/shared';
-import { asc, eq } from 'drizzle-orm';
+import { asc, desc, eq } from 'drizzle-orm';
 import type { Store } from './db.js';
 import { blocks, pages, refs, tasks } from './schema.js';
 
@@ -120,6 +122,34 @@ export function getTaskGroups(store: Store): LinkedRefGroup[] {
     .all()
     .map((row) => row.block);
   return groupByPage(store, matching);
+}
+
+/**
+ * Recent daily pages (ISO-date titles sort chronologically as strings),
+ * newest first, with title-cursor pagination. Empty days are returned as
+ * stored — whether to show them is the client's concern.
+ */
+export function getJournal(
+  store: Store,
+  opts: { before?: string; limit?: number } = {},
+): JournalPayload {
+  const limit = Number.isFinite(opts.limit)
+    ? Math.min(Math.max(Math.floor(opts.limit!), 1), 100)
+    : 20;
+  const daily = store.db
+    .select()
+    .from(pages)
+    .orderBy(desc(pages.title))
+    .all()
+    .filter((page) => isDailyTitle(page.title))
+    .filter((page) => (opts.before ? page.title < opts.before : true));
+  return {
+    days: daily.slice(0, limit).map((page) => ({
+      page,
+      blocks: getPageBlocks(store, page.id),
+    })),
+    hasMore: daily.length > limit,
+  };
 }
 
 export function getPagePayload(

@@ -1,9 +1,18 @@
-import { ListTodo, Plus, Sprout } from 'lucide-react';
+import { isDailyTitle, todayTitle } from '@taproot/shared';
+import { BookOpen, CalendarDays, ListTodo, Plus, Sprout } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useStore } from '@/store';
+
+const navItemClass = (active: boolean) =>
+  cn(
+    'flex w-full items-center gap-2 rounded-md px-2 py-1 text-sm transition-colors',
+    active
+      ? 'bg-accent font-medium text-accent-foreground'
+      : 'text-foreground/80 hover:bg-accent/60',
+  );
 
 export function Sidebar() {
   const pages = useStore((s) => s.pages);
@@ -49,15 +58,23 @@ export function Sidebar() {
         </button>
       </form>
       <nav className="px-2 pb-2">
-        <Link
-          href="/tasks"
-          className={cn(
-            'flex items-center gap-2 rounded-md px-2 py-1 text-sm transition-colors',
-            location === '/tasks'
-              ? 'bg-accent font-medium text-accent-foreground'
-              : 'text-foreground/80 hover:bg-accent/60',
-          )}
+        <button
+          onClick={() => {
+            // recomputed per click so an open app survives midnight
+            void api
+              .pageByTitle(todayTitle())
+              .then((page) => navigate(`/p/${page.id}`));
+          }}
+          className={navItemClass(false)}
         >
+          <CalendarDays className="h-4 w-4" />
+          Today
+        </button>
+        <Link href="/journal" className={navItemClass(location === '/journal')}>
+          <BookOpen className="h-4 w-4" />
+          Journal
+        </Link>
+        <Link href="/tasks" className={navItemClass(location === '/tasks')}>
           <ListTodo className="h-4 w-4" />
           Tasks
         </Link>
@@ -66,24 +83,26 @@ export function Sidebar() {
         <p className="px-2 pb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
           Pages
         </p>
-        {pages.map((page) => {
-          const href = `/p/${page.id}`;
-          const active = location === href;
-          return (
-            <Link
-              key={page.id}
-              href={href}
-              className={cn(
-                'block truncate rounded-md px-2 py-1 text-sm transition-colors',
-                active
-                  ? 'bg-accent font-medium text-accent-foreground'
-                  : 'text-foreground/80 hover:bg-accent/60',
-              )}
-            >
-              {page.title}
-            </Link>
-          );
-        })}
+        {pages
+          .filter((page) => !isDailyTitle(page.title))
+          .map((page) => {
+            const href = `/p/${page.id}`;
+            const active = location === href;
+            return (
+              <Link
+                key={page.id}
+                href={href}
+                className={cn(
+                  'block truncate rounded-md px-2 py-1 text-sm transition-colors',
+                  active
+                    ? 'bg-accent font-medium text-accent-foreground'
+                    : 'text-foreground/80 hover:bg-accent/60',
+                )}
+              >
+                {page.title}
+              </Link>
+            );
+          })}
       </nav>
     </aside>
   );

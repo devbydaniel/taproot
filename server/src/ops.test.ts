@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createStore, type Store } from './db.js';
 import { applyOps, ensurePage, reindexTasks } from './ops.js';
 import {
+  getJournal,
   getPagePayload,
   getTaskGroups,
   getZoomPayload,
@@ -302,5 +303,56 @@ describe('task index', () => {
     expect(getTaskGroups(store)).toHaveLength(0);
     reindexTasks(store);
     expect(getTaskGroups(store)[0]?.rootIds).toEqual(['t1']);
+  });
+});
+
+describe('getJournal', () => {
+  it('returns only daily pages, newest first, with their blocks', () => {
+    setupPage('Welcome');
+    setupPage('2026-02-30'); // date-shaped but not a real date
+    const day1 = setupPage('2026-07-01');
+    setupPage('2026-07-03');
+    applyOps(store, [
+      {
+        type: 'create_block',
+        id: 'b1',
+        pageId: day1.id,
+        parentId: null,
+        orderKey: 'a0',
+        text: 'wrote this on the first',
+      },
+    ]);
+
+    const journal = getJournal(store);
+    expect(journal.days.map((d) => d.page.title)).toEqual([
+      '2026-07-03',
+      '2026-07-01',
+    ]);
+    expect(journal.days[1]?.blocks.map((b) => b.id)).toEqual(['b1']);
+    expect(journal.hasMore).toBe(false);
+  });
+
+  it('paginates with a title cursor and reports hasMore', () => {
+    setupPage('2026-07-01');
+    setupPage('2026-07-02');
+    setupPage('2026-07-03');
+
+    const first = getJournal(store, { limit: 2 });
+    expect(first.days.map((d) => d.page.title)).toEqual([
+      '2026-07-03',
+      '2026-07-02',
+    ]);
+    expect(first.hasMore).toBe(true);
+
+    const rest = getJournal(store, { before: '2026-07-02', limit: 2 });
+    expect(rest.days.map((d) => d.page.title)).toEqual(['2026-07-01']);
+    expect(rest.hasMore).toBe(false);
+  });
+
+  it('clamps out-of-range limits', () => {
+    setupPage('2026-07-01');
+    setupPage('2026-07-02');
+    expect(getJournal(store, { limit: 0 }).days).toHaveLength(1);
+    expect(getJournal(store, { limit: Number.NaN }).days).toHaveLength(2);
   });
 });
