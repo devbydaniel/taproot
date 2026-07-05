@@ -86,6 +86,11 @@ function applyOpToBlocks(
       }
       return next;
     }
+    default: {
+      // exhaustiveness: adding an Op variant is a compile error here until handled
+      op satisfies never;
+      return blocks;
+    }
   }
 }
 

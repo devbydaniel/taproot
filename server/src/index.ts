@@ -3,8 +3,8 @@ import { serveStatic } from '@hono/node-server/serve-static';
 import { createNodeWebSocket } from '@hono/node-ws';
 import {
   isDailyTitle,
+  opsRequestSchema,
   type OpsBroadcast,
-  type OpsRequest,
 } from '@taproot/shared';
 import { Hono } from 'hono';
 import type { WSContext } from 'hono/ws';
@@ -83,12 +83,15 @@ api.get('/blocks/:id', (c) => {
 });
 
 api.post('/ops', async (c) => {
-  const body = (await c.req.json()) as OpsRequest;
-  if (!Array.isArray(body.ops) || body.ops.length === 0) {
-    return c.json({ error: 'no ops' }, 400);
+  const parsed = opsRequestSchema.safeParse(
+    await c.req.json().catch(() => null),
+  );
+  if (!parsed.success) {
+    return c.json({ error: 'invalid ops request' }, 400);
   }
-  applyOps(store, body.ops);
-  broadcast({ type: 'ops', clientId: body.clientId, ops: body.ops });
+  const { clientId, ops } = parsed.data;
+  applyOps(store, ops);
+  broadcast({ type: 'ops', clientId, ops });
   return c.json({ ok: true });
 });
 

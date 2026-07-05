@@ -1,3 +1,5 @@
+import type { Op } from './ops.js';
+
 export interface Page {
   id: string;
   title: string;
@@ -14,36 +16,6 @@ export interface Block {
   text: string;
   createdAt: number;
   updatedAt: number;
-}
-
-/**
- * All writes are expressed as small idempotent operations. The client applies
- * them optimistically and posts them to the server; the server applies them
- * transactionally, maintains the refs index, and broadcasts them to other
- * connected clients.
- */
-export type Op =
-  | { type: 'create_page'; id: string; title: string }
-  | {
-      type: 'create_block';
-      id: string;
-      pageId: string;
-      parentId: string | null;
-      orderKey: string;
-      text: string;
-    }
-  | { type: 'update_text'; id: string; text: string }
-  | {
-      type: 'move_block';
-      id: string;
-      parentId: string | null;
-      orderKey: string;
-    }
-  | { type: 'delete_block'; id: string };
-
-export interface OpsRequest {
-  clientId: string;
-  ops: Op[];
 }
 
 export interface OpsBroadcast {

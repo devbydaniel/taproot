@@ -187,6 +187,11 @@ function applyOp(store: Store, op: Op) {
       store.db.delete(blocks).where(eq(blocks.id, op.id)).run();
       break;
     }
+    default: {
+      // exhaustiveness: adding an Op variant is a compile error here until handled
+      op satisfies never;
+      break;
+    }
   }
 }
 
