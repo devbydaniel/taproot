@@ -1,3 +1,4 @@
+import { useHotkey } from '@tanstack/react-hotkeys';
 import { useEffect } from 'react';
 import { Redirect, Route, Switch, useLocation } from 'wouter';
 import { CommandPalette } from '@/components/CommandPalette';
@@ -13,11 +14,13 @@ import { useStore } from '@/store';
 
 export function App() {
   const remoteEpoch = useStore((s) => s.remoteEpoch);
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
 
   useEffect(() => {
     startWs();
   }, []);
+
+  useHotkey('Mod+J', () => navigate('/journal'));
 
   // keeps the store's page list fresh for the [[ autocomplete and the pages
   // view; location is a dep so auto-created pages show up after navigation

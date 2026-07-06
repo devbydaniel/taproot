@@ -1,6 +1,7 @@
+import { useHotkey } from '@tanstack/react-hotkeys';
 import { Command } from 'cmdk';
 import { FileText, Plus } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { api } from '@/lib/api';
 import { useStore } from '@/store';
@@ -11,19 +12,10 @@ export function CommandPalette() {
   const pages = useStore((s) => s.pages);
   const [, navigate] = useLocation();
 
-  // capture phase so the shortcut works while a CodeMirror editor is focused
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        event.stopPropagation();
-        setQuery('');
-        setOpen((current) => !current);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown, true);
-    return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, []);
+  useHotkey('Mod+K', () => {
+    setQuery('');
+    setOpen((current) => !current);
+  });
 
   const go = (id: string) => {
     setOpen(false);
