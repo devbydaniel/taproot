@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.2.0...taproot-v0.3.0) (2026-07-06)
+
+
+### Features
+
+* cmd+j opens the journal, hotkeys via @tanstack/react-hotkeys ([502e72b](https://github.com/devbydaniel/taproot/commit/502e72b1470be9dde41cec6e382f0b23d34765d6))
+* sprout favicon matching the sidebar brand icon ([63dd6b7](https://github.com/devbydaniel/taproot/commit/63dd6b77e08447e6b4d033c68d4bd389d47771b4))
+
 ## [0.2.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.1.0...taproot-v0.2.0) (2026-07-06)
 
 
