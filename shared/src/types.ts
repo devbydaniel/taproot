@@ -4,6 +4,8 @@ export interface Page {
   id: string;
   title: string;
   createdAt: number;
+  /** fractional index among pinned pages; null = not pinned */
+  pinnedOrderKey: string | null;
 }
 
 export interface Block {

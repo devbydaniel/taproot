@@ -428,3 +428,36 @@ describe('getJournal', () => {
     ).toEqual(['b2']);
   });
 });
+
+describe('page pinning', () => {
+  it('pins a page via set_page_pinned', () => {
+    const page = setupPage('Projects');
+    applyOps(store, [{ type: 'set_page_pinned', id: page.id, orderKey: 'a0' }]);
+
+    const row = listPages(store).find((p) => p.id === page.id);
+    expect(row?.pinnedOrderKey).toBe('a0');
+  });
+
+  it('unpins with a null orderKey', () => {
+    const page = setupPage('Projects');
+    applyOps(store, [{ type: 'set_page_pinned', id: page.id, orderKey: 'a0' }]);
+    applyOps(store, [{ type: 'set_page_pinned', id: page.id, orderKey: null }]);
+
+    const row = listPages(store).find((p) => p.id === page.id);
+    expect(row?.pinnedOrderKey).toBeNull();
+  });
+
+  it('is a silent no-op for unknown page ids', () => {
+    const page = setupPage('Projects');
+    applyOps(store, [{ type: 'set_page_pinned', id: 'nope', orderKey: 'a0' }]);
+
+    const row = listPages(store).find((p) => p.id === page.id);
+    expect(row?.pinnedOrderKey).toBeNull();
+  });
+
+  it('new pages default to unpinned', () => {
+    setupPage('Fresh');
+    const row = listPages(store).find((p) => p.title === 'Fresh');
+    expect(row?.pinnedOrderKey).toBeNull();
+  });
+});

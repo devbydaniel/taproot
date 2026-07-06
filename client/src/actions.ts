@@ -59,6 +59,23 @@ export function toggleTaskCheckbox(blockId: string) {
   dispatch([{ type: 'update_text', id: blockId, text }]);
 }
 
+/** Pin appends at the end of the pinned list; unpin clears the key. */
+export function togglePagePinned(pageId: string) {
+  const { pages } = useStore.getState();
+  const page = pages.find((p) => p.id === pageId);
+  if (!page) return;
+  if (page.pinnedOrderKey !== null) {
+    dispatch([{ type: 'set_page_pinned', id: pageId, orderKey: null }]);
+    return;
+  }
+  const keys = pages
+    .map((p) => p.pinnedOrderKey)
+    .filter((k): k is string => k !== null)
+    .sort();
+  const orderKey = generateKeyBetween(keys[keys.length - 1] ?? null, null);
+  dispatch([{ type: 'set_page_pinned', id: pageId, orderKey }]);
+}
+
 // --- structural edits ---
 
 /** Enter: split the block at the cursor; text after the cursor moves to the new block. */

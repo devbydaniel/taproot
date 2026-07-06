@@ -1,0 +1,1 @@
+ALTER TABLE `pages` ADD `pinned_order_key` text;

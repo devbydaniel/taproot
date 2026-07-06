@@ -11,6 +11,8 @@ export const pages = sqliteTable('pages', {
   id: text('id').primaryKey(),
   title: text('title').notNull().unique(),
   createdAt: integer('created_at').notNull(),
+  // fractional index among pinned pages; null = not pinned
+  pinnedOrderKey: text('pinned_order_key'),
 });
 
 export const blocks = sqliteTable(

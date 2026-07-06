@@ -5,7 +5,7 @@ import {
   todayTitle,
   type PagePayload,
 } from '@taproot/shared';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Pin } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import * as actions from '@/actions';
@@ -21,6 +21,10 @@ export function PageView({ id }: { id: string }) {
   const remoteEpoch = useStore((s) => s.remoteEpoch);
   const hasBlocks = useStore((s) =>
     Object.values(s.blocks).some((b) => b.pageId === id),
+  );
+  // read pinned state from the store, not the payload, so toggles are optimistic
+  const pinned = useStore(
+    (s) => s.pages.find((p) => p.id === id)?.pinnedOrderKey != null,
   );
   // pages already auto-focused, so remote-epoch refetches don't steal the cursor
   const autoFocused = useRef<string | null>(null);
@@ -80,13 +84,27 @@ export function PageView({ id }: { id: string }) {
 
   return (
     <div className="mx-auto max-w-3xl px-8 py-10">
-      <h1
+      <div
         className={
-          'text-3xl font-bold tracking-tight ' + (isDaily ? 'mb-1' : 'mb-6')
+          'group flex items-center gap-2 ' + (isDaily ? 'mb-1' : 'mb-6')
         }
       >
-        {payload.page.title}
-      </h1>
+        <h1 className="text-3xl font-bold tracking-tight">
+          {payload.page.title}
+        </h1>
+        <button
+          onClick={() => actions.togglePagePinned(id)}
+          title={pinned ? 'Unpin from sidebar' : 'Pin to sidebar'}
+          className={
+            'flex h-7 w-7 items-center justify-center rounded-md transition-colors hover:bg-accent ' +
+            (pinned
+              ? 'text-foreground'
+              : 'text-muted-foreground opacity-0 group-hover:opacity-100')
+          }
+        >
+          <Pin className={'h-4 w-4' + (pinned ? ' fill-current' : '')} />
+        </button>
+      </div>
       {isDaily && <DailyNav title={payload.page.title} />}
       {hasBlocks ? (
         <OutlineTree parentId={null} ctx={ctx} />

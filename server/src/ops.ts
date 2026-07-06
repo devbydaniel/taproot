@@ -17,7 +17,12 @@ export function ensurePage(store: Store, title: string): Page {
     .where(eq(pages.title, title))
     .get();
   if (existing) return existing;
-  const page: Page = { id: nanoid(), title, createdAt: Date.now() };
+  const page: Page = {
+    id: nanoid(),
+    title,
+    createdAt: Date.now(),
+    pinnedOrderKey: null,
+  };
   store.db.insert(pages).values(page).run();
   return page;
 }
@@ -185,6 +190,14 @@ function applyOp(store: Store, op: Op) {
     case 'delete_block': {
       // children and refs cascade via foreign keys
       store.db.delete(blocks).where(eq(blocks.id, op.id)).run();
+      break;
+    }
+    case 'set_page_pinned': {
+      store.db
+        .update(pages)
+        .set({ pinnedOrderKey: op.orderKey })
+        .where(eq(pages.id, op.id))
+        .run();
       break;
     }
     default: {

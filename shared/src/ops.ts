@@ -44,6 +44,12 @@ export const opSchema = z.discriminatedUnion('type', [
     type: z.literal('delete_block'),
     id,
   }),
+  z.object({
+    type: z.literal('set_page_pinned'),
+    id,
+    // fractional index among pinned pages; null = unpin
+    orderKey: z.string().min(1).nullable(),
+  }),
 ]);
 
 export type Op = z.infer<typeof opSchema>;

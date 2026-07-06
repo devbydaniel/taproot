@@ -51,6 +51,7 @@ function applyOpToBlocks(
 ): Record<string, Block> {
   switch (op.type) {
     case 'create_page':
+    case 'set_page_pinned':
       return blocks;
     case 'create_block':
       return {
@@ -103,6 +104,19 @@ function applyOpToBlocks(
   }
 }
 
+/**
+ * Page-level counterpart of applyOpToBlocks. Deliberately not exhaustive —
+ * most ops don't touch pages, so unknown ops pass through unchanged.
+ */
+function applyOpToPages(pages: Page[], op: Op): Page[] {
+  if (op.type === 'set_page_pinned') {
+    return pages.map((page) =>
+      page.id === op.id ? { ...page, pinnedOrderKey: op.orderKey } : page,
+    );
+  }
+  return pages;
+}
+
 export const useStore = create<OutlineState>((set) => ({
   pages: [],
   blocks: {},
@@ -127,8 +141,12 @@ export const useStore = create<OutlineState>((set) => ({
   applyOps: (ops) =>
     set((state) => {
       let blocks = state.blocks;
-      for (const op of ops) blocks = applyOpToBlocks(blocks, op);
-      return { blocks };
+      let pages = state.pages;
+      for (const op of ops) {
+        blocks = applyOpToBlocks(blocks, op);
+        pages = applyOpToPages(pages, op);
+      }
+      return { blocks, pages };
     }),
   bumpRemoteEpoch: () =>
     set((state) => ({ remoteEpoch: state.remoteEpoch + 1 })),
