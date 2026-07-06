@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { Redirect, Route, Switch, useLocation } from 'wouter';
+import { CommandPalette } from '@/components/CommandPalette';
 import { Sidebar } from '@/components/Sidebar';
 import { api } from '@/lib/api';
 import { startWs } from '@/lib/ws';
@@ -26,6 +27,7 @@ export function App() {
 
   return (
     <div className="flex h-screen">
+      <CommandPalette />
       <Sidebar />
       <main className="min-w-0 flex-1 overflow-y-auto">
         <Switch>
