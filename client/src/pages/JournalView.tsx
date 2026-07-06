@@ -5,7 +5,7 @@ import * as actions from '@/actions';
 import { RefGroupCard } from '@/components/LinkedRefs';
 import { OutlineTree } from '@/components/OutlineTree';
 import { api } from '@/lib/api';
-import type { OutlineCtx } from '@/lib/outline';
+import { visibleOrder, type OutlineCtx } from '@/lib/outline';
 import { useStore } from '@/store';
 
 const PAGE_SIZE = 20;
@@ -16,6 +16,8 @@ export function JournalView() {
   const remoteEpoch = useStore((s) => s.remoteEpoch);
   // how many days the view has loaded, so epoch refetches cover the whole window
   const loadedLimit = useRef(PAGE_SIZE);
+  // today already auto-focused, so remote-epoch refetches don't steal the cursor
+  const autoFocused = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -34,6 +36,16 @@ export function JournalView() {
       );
       setDays(data.days);
       setHasMore(data.hasMore);
+      const today = data.days.find((d) => d.page.title === todayTitle());
+      if (!autoFocused.current && today) {
+        autoFocused.current = true;
+        const ctx: OutlineCtx = { pageId: today.page.id, rootParentId: null };
+        const { blocks, setFocus } = useStore.getState();
+        const order = visibleOrder(blocks, ctx);
+        const last = order[order.length - 1];
+        if (last) setFocus({ blockId: last.id, cursor: 'end' });
+        else actions.appendBlock(ctx);
+      }
     })();
     return () => {
       cancelled = true;
