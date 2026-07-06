@@ -11,6 +11,7 @@ import { useLocation } from 'wouter';
 import * as actions from '@/actions';
 import { LinkedRefs } from '@/components/LinkedRefs';
 import { OutlineTree } from '@/components/OutlineTree';
+import { PageTasks } from '@/components/PageTasks';
 import { api } from '@/lib/api';
 import { hasChildren, visibleOrder, type OutlineCtx } from '@/lib/outline';
 import { useStore } from '@/store';
@@ -106,6 +107,7 @@ export function PageView({ id }: { id: string }) {
         </button>
       </div>
       {isDaily && <DailyNav title={payload.page.title} />}
+      <PageTasks groups={payload.linkedRefs} />
       {hasBlocks ? (
         <OutlineTree parentId={null} ctx={ctx} />
       ) : (
