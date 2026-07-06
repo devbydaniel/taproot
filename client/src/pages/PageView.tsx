@@ -6,7 +6,7 @@ import {
   type PagePayload,
 } from '@taproot/shared';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import * as actions from '@/actions';
 import { LinkedRefs } from '@/components/LinkedRefs';
@@ -22,6 +22,8 @@ export function PageView({ id }: { id: string }) {
   const hasBlocks = useStore((s) =>
     Object.values(s.blocks).some((b) => b.pageId === id),
   );
+  // pages already auto-focused, so remote-epoch refetches don't steal the cursor
+  const autoFocused = useRef<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,6 +38,17 @@ export function PageView({ id }: { id: string }) {
           .getState()
           .mergeBlocks(data.linkedRefs.flatMap((g) => g.blocks));
         setPayload(data);
+        if (autoFocused.current !== id) {
+          autoFocused.current = id;
+          const { blocks, setFocus } = useStore.getState();
+          const order = visibleOrder(blocks, {
+            pageId: id,
+            rootParentId: null,
+          });
+          const last = order[order.length - 1];
+          if (last) setFocus({ blockId: last.id, cursor: 'end' });
+          else actions.appendBlock({ pageId: id, rootParentId: null });
+        }
       })
       .catch(() => setNotFound(true));
     return () => {
