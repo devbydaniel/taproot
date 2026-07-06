@@ -65,6 +65,7 @@ Flow: client applies ops optimistically (`client/src/actions.ts` → `dispatch`)
 ## Conventions
 
 - Strict TS everywhere; `verbatimModuleSyntax` — use `import type`.
+- Conventional commits — release-please reads them: `feat:`/`fix:` bump the version and land in the changelog; merging the release PR publishes the GHCR image the homelab deploys.
 - Prettier (single quotes, trailing commas); run `npm run format` before committing.
 - Keyboard behavior lives in the `Prec.highest` keymap in `BlockEditor.tsx`; guard new bindings with `completionStatus()` so the `[[` autocomplete keeps priority.
 - Tests go through the public seam (ops in, queries out) against `:memory:` — don't assert on private table state unless testing the index itself.
