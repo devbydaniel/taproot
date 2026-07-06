@@ -37,6 +37,7 @@ export interface LinkedRefGroup {
 export interface JournalDay {
   page: Page;
   blocks: Block[];
+  linkedRefs: LinkedRefGroup[];
 }
 
 export interface JournalPayload {

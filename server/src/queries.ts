@@ -3,6 +3,7 @@ import {
   type Block,
   type JournalPayload,
   type LinkedRefGroup,
+  type Page,
   type PagePayload,
   type ZoomPayload,
 } from '@taproot/shared';
@@ -61,29 +62,44 @@ function collectSubtree(
   return result;
 }
 
+/** Pages and full block lists of every page that contains a matching block. */
+interface SourceData {
+  pageById: Map<string, Page>;
+  blocksBySourcePage: Map<string, Block[]>;
+}
+
+/** One batched fetch per table instead of two queries per source page. */
+function fetchSourceData(store: Store, matching: Block[]): SourceData {
+  const sourcePageIds = [...new Set(matching.map((block) => block.pageId))];
+  if (sourcePageIds.length === 0)
+    return { pageById: new Map(), blocksBySourcePage: new Map() };
+  return {
+    pageById: new Map(
+      store.db
+        .select()
+        .from(pages)
+        .where(inArray(pages.id, sourcePageIds))
+        .all()
+        .map((page) => [page.id, page]),
+    ),
+    blocksBySourcePage: blocksByPageMap(
+      store.db
+        .select()
+        .from(blocks)
+        .where(inArray(blocks.pageId, sourcePageIds))
+        .orderBy(asc(blocks.orderKey))
+        .all(),
+    ),
+  };
+}
+
 /** Group matching blocks by their page, each root carrying its full subtree. */
-function groupByPage(store: Store, matching: Block[]): LinkedRefGroup[] {
+function buildGroups(
+  matching: Block[],
+  { pageById, blocksBySourcePage }: SourceData,
+): LinkedRefGroup[] {
   const bySourcePage = blocksByPageMap(matching);
   if (bySourcePage.size === 0) return [];
-
-  // one batched fetch per table instead of two queries per source page
-  const sourcePageIds = [...bySourcePage.keys()];
-  const pageById = new Map(
-    store.db
-      .select()
-      .from(pages)
-      .where(inArray(pages.id, sourcePageIds))
-      .all()
-      .map((page) => [page.id, page]),
-  );
-  const blocksBySourcePage = blocksByPageMap(
-    store.db
-      .select()
-      .from(blocks)
-      .where(inArray(blocks.pageId, sourcePageIds))
-      .orderBy(asc(blocks.orderKey))
-      .all(),
-  );
 
   const groups: LinkedRefGroup[] = [];
   for (const [sourcePageId, pageMatches] of bySourcePage) {
@@ -121,6 +137,10 @@ function groupByPage(store: Store, matching: Block[]): LinkedRefGroup[] {
     groups.push({ page, rootIds: roots.map((b) => b.id), blocks: groupBlocks });
   }
   return groups.sort((a, b) => a.page.title.localeCompare(b.page.title));
+}
+
+function groupByPage(store: Store, matching: Block[]): LinkedRefGroup[] {
+  return buildGroups(matching, fetchSourceData(store, matching));
 }
 
 function linkedRefGroups(store: Store, pageId: string): LinkedRefGroup[] {
@@ -200,10 +220,36 @@ export function getJournal(
       .orderBy(asc(blocks.orderKey))
       .all(),
   );
+
+  // linked refs for the whole window at once: one refs fetch keyed by target
+  // day, one shared source-page fetch, then per-day grouping in memory
+  const refRows = store.db
+    .select({ targetPageId: refs.pageId, block: blocks })
+    .from(refs)
+    .innerJoin(blocks, eq(refs.blockId, blocks.id))
+    .where(
+      inArray(
+        refs.pageId,
+        days.map((page) => page.id),
+      ),
+    )
+    .all();
+  const matchingByDay = new Map<string, Block[]>();
+  for (const row of refRows) {
+    const list = matchingByDay.get(row.targetPageId) ?? [];
+    list.push(row.block);
+    matchingByDay.set(row.targetPageId, list);
+  }
+  const sourceData = fetchSourceData(
+    store,
+    refRows.map((row) => row.block),
+  );
+
   return {
     days: days.map((page) => ({
       page,
       blocks: dayBlocks.get(page.id) ?? [],
+      linkedRefs: buildGroups(matchingByDay.get(page.id) ?? [], sourceData),
     })),
     hasMore,
   };

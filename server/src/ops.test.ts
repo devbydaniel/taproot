@@ -393,4 +393,38 @@ describe('getJournal', () => {
     expect(getJournal(store, { limit: 0 }).days).toHaveLength(1);
     expect(getJournal(store, { limit: Number.NaN }).days).toHaveLength(2);
   });
+
+  it('attaches linked references to each day', () => {
+    const home = setupPage('Home');
+    setupPage('2026-07-01');
+    setupPage('2026-07-02');
+    applyOps(store, [
+      {
+        type: 'create_block',
+        id: 'b1',
+        pageId: home.id,
+        parentId: null,
+        orderKey: 'a0',
+        text: 'ship it on [[2026-07-01]]',
+      },
+      {
+        type: 'create_block',
+        id: 'b2',
+        pageId: home.id,
+        parentId: null,
+        orderKey: 'a1',
+        text: 'review on [[2026-07-02]]',
+      },
+    ]);
+
+    const journal = getJournal(store);
+    const byTitle = new Map(journal.days.map((d) => [d.page.title, d]));
+    expect(
+      byTitle.get('2026-07-01')?.linkedRefs[0]?.blocks.map((b) => b.id),
+    ).toEqual(['b1']);
+    expect(byTitle.get('2026-07-01')?.linkedRefs[0]?.page.title).toBe('Home');
+    expect(
+      byTitle.get('2026-07-02')?.linkedRefs[0]?.blocks.map((b) => b.id),
+    ).toEqual(['b2']);
+  });
 });

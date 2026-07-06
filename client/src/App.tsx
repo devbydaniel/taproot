@@ -1,6 +1,5 @@
-import { todayTitle } from '@taproot/shared';
 import { useEffect } from 'react';
-import { Route, Switch, useLocation } from 'wouter';
+import { Redirect, Route, Switch, useLocation } from 'wouter';
 import { Sidebar } from '@/components/Sidebar';
 import { api } from '@/lib/api';
 import { startWs } from '@/lib/ws';
@@ -10,18 +9,6 @@ import { PageView } from '@/pages/PageView';
 import { TasksView } from '@/pages/TasksView';
 import { ZoomView } from '@/pages/ZoomView';
 import { useStore } from '@/store';
-
-function HomeRedirect() {
-  const [, navigate] = useLocation();
-  useEffect(() => {
-    // today's title is computed here (not at module load) so an app opened
-    // after midnight lands on the new day
-    void api
-      .pageByTitle(todayTitle())
-      .then((page) => navigate(`/p/${page.id}`, { replace: true }));
-  }, [navigate]);
-  return null;
-}
 
 export function App() {
   const remoteEpoch = useStore((s) => s.remoteEpoch);
@@ -51,7 +38,9 @@ export function App() {
           <Route path="/b/:id">
             {(params) => <ZoomView key={params.id} id={params.id} />}
           </Route>
-          <Route path="/" component={HomeRedirect} />
+          <Route path="/">
+            <Redirect to="/journal" replace />
+          </Route>
           <Route>
             <p className="p-10 text-muted-foreground">Not found.</p>
           </Route>

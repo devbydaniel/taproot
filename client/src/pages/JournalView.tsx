@@ -2,6 +2,7 @@ import { dailyLabel, todayTitle, type JournalDay } from '@taproot/shared';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'wouter';
 import * as actions from '@/actions';
+import { RefGroupCard } from '@/components/LinkedRefs';
 import { OutlineTree } from '@/components/OutlineTree';
 import { api } from '@/lib/api';
 import type { OutlineCtx } from '@/lib/outline';
@@ -26,6 +27,11 @@ export function JournalView() {
       const store = useStore.getState();
       for (const day of data.days)
         store.loadPageBlocks(day.page.id, day.blocks);
+      // ref blocks live on other pages; merge them so checkbox toggles in
+      // the references sections render immediately (same as PageView)
+      store.mergeBlocks(
+        data.days.flatMap((day) => day.linkedRefs.flatMap((g) => g.blocks)),
+      );
       setDays(data.days);
       setHasMore(data.hasMore);
     })();
@@ -43,6 +49,9 @@ export function JournalView() {
     });
     const store = useStore.getState();
     for (const day of data.days) store.loadPageBlocks(day.page.id, day.blocks);
+    store.mergeBlocks(
+      data.days.flatMap((day) => day.linkedRefs.flatMap((g) => g.blocks)),
+    );
     setDays([...days, ...data.days]);
     setHasMore(data.hasMore);
     loadedLimit.current += data.days.length;
@@ -74,8 +83,9 @@ function DaySection({ day }: { day: JournalDay }) {
     Object.values(s.blocks).some((b) => b.pageId === pageId),
   );
   const isToday = day.page.title === todayTitle();
-  // past days with nothing written stay out of the journal; today always shows
-  if (!hasBlocks && !isToday) return null;
+  // past days with nothing written and no mentions stay out of the journal;
+  // today always shows
+  if (!hasBlocks && !isToday && day.linkedRefs.length === 0) return null;
 
   const ctx: OutlineCtx = { pageId, rootParentId: null };
 
@@ -101,6 +111,16 @@ function DaySection({ day }: { day: JournalDay }) {
         >
           Click to start writing…
         </button>
+      )}
+      {day.linkedRefs.length > 0 && (
+        <div className="mt-4">
+          <h3 className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            Linked References
+          </h3>
+          {day.linkedRefs.map((group) => (
+            <RefGroupCard key={group.page.id} group={group} />
+          ))}
+        </div>
       )}
     </section>
   );

@@ -1,12 +1,4 @@
-import { todayTitle } from '@taproot/shared';
-import {
-  BookOpen,
-  CalendarDays,
-  FileText,
-  ListTodo,
-  Plus,
-  Sprout,
-} from 'lucide-react';
+import { BookOpen, FileText, ListTodo, Plus, Sprout } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { api } from '@/lib/api';
@@ -58,18 +50,6 @@ export function Sidebar() {
         </button>
       </form>
       <nav className="px-2 pb-2">
-        <button
-          onClick={() => {
-            // recomputed per click so an open app survives midnight
-            void api
-              .pageByTitle(todayTitle())
-              .then((page) => navigate(`/p/${page.id}`));
-          }}
-          className={navItemClass(false)}
-        >
-          <CalendarDays className="h-4 w-4" />
-          Today
-        </button>
         <Link href="/journal" className={navItemClass(location === '/journal')}>
           <BookOpen className="h-4 w-4" />
           Journal
