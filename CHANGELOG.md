@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.4.0...taproot-v0.5.0) (2026-07-06)
+
+
+### Features
+
+* PWA manifest + icons and responsive mobile layout ([5c479a2](https://github.com/devbydaniel/taproot/commit/5c479a2f140c5ced4e70cf546ff7be8ec30daadf))
+
 ## [0.4.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.3.0...taproot-v0.4.0) (2026-07-06)
 
 
