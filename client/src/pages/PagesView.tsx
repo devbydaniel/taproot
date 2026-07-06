@@ -10,7 +10,7 @@ export function PagesView() {
   const nonDaily = pages.filter((page) => !isDailyTitle(page.title));
 
   return (
-    <div className="mx-auto max-w-3xl px-8 py-10">
+    <div className="mx-auto max-w-3xl px-4 py-6 md:px-8 md:py-10">
       <div className="mb-8 flex items-baseline gap-3">
         <h1 className="text-3xl font-bold tracking-tight">Pages</h1>
         <span className="text-sm text-muted-foreground">

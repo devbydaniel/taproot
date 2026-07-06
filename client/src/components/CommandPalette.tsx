@@ -6,19 +6,24 @@ import { useLocation } from 'wouter';
 import { api } from '@/lib/api';
 import { useStore } from '@/store';
 
-export function CommandPalette() {
-  const [open, setOpen] = useState(false);
+export function CommandPalette({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const [query, setQuery] = useState('');
   const pages = useStore((s) => s.pages);
   const [, navigate] = useLocation();
 
   useHotkey('Mod+K', () => {
     setQuery('');
-    setOpen((current) => !current);
+    onOpenChange(!open);
   });
 
   const go = (id: string) => {
-    setOpen(false);
+    onOpenChange(false);
     navigate(`/p/${id}`);
   };
 
@@ -39,7 +44,7 @@ export function CommandPalette() {
     <Command.Dialog
       open={open}
       onOpenChange={(next) => {
-        setOpen(next);
+        onOpenChange(next);
         if (!next) setQuery('');
       }}
       label="Search pages"

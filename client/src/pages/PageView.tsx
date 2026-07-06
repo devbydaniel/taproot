@@ -84,7 +84,7 @@ export function PageView({ id }: { id: string }) {
   const isDaily = isDailyTitle(payload.page.title);
 
   return (
-    <div className="mx-auto max-w-3xl px-8 py-10">
+    <div className="mx-auto max-w-3xl px-4 py-6 md:px-8 md:py-10">
       <div
         className={
           'group flex items-center gap-2 ' + (isDaily ? 'mb-1' : 'mb-6')
@@ -100,7 +100,7 @@ export function PageView({ id }: { id: string }) {
             'flex h-7 w-7 items-center justify-center rounded-md transition-colors hover:bg-accent ' +
             (pinned
               ? 'text-foreground'
-              : 'text-muted-foreground opacity-0 group-hover:opacity-100')
+              : 'text-muted-foreground md:opacity-0 md:group-hover:opacity-100')
           }
         >
           <Pin className={'h-4 w-4' + (pinned ? ' fill-current' : '')} />

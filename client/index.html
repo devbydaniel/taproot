@@ -4,6 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Taproot" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <title>Taproot</title>
     <script>
       // apply the persisted theme before first paint to avoid a light flash
@@ -13,6 +19,9 @@
         (theme === null && matchMedia('(prefers-color-scheme: dark)').matches)
       ) {
         document.documentElement.classList.add('dark');
+        document
+          .querySelector('meta[name="theme-color"]')
+          .setAttribute('content', '#252525');
       }
     </script>
   </head>

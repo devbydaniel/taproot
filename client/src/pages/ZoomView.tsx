@@ -66,7 +66,7 @@ export function ZoomView({ id }: { id: string }) {
   };
 
   return (
-    <div className="mx-auto max-w-3xl px-8 py-10">
+    <div className="mx-auto max-w-3xl px-4 py-6 md:px-8 md:py-10">
       <nav className="mb-4 flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
         <Link
           href={`/p/${payload.page.id}`}

@@ -24,7 +24,7 @@ export function TasksView() {
   const count = groups.reduce((sum, group) => sum + group.rootIds.length, 0);
 
   return (
-    <div className="mx-auto max-w-3xl px-8 py-10">
+    <div className="mx-auto max-w-3xl px-4 py-6 md:px-8 md:py-10">
       <h1 className="mb-1 text-3xl font-bold tracking-tight">Tasks</h1>
       <p className="mb-8 text-sm text-muted-foreground">
         {count} open {count === 1 ? 'task' : 'tasks'}

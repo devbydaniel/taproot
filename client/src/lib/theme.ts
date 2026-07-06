@@ -14,6 +14,10 @@ function getTheme(): Theme {
 function setTheme(theme: Theme): void {
   localStorage.setItem(STORAGE_KEY, theme);
   document.documentElement.classList.toggle('dark', theme === 'dark');
+  // keep browser/standalone chrome in sync with the active theme
+  document
+    .querySelector('meta[name="theme-color"]')
+    ?.setAttribute('content', theme === 'dark' ? '#252525' : '#ffffff');
   for (const l of listeners) l();
 }
 
