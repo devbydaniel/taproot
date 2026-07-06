@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.3.0...taproot-v0.4.0) (2026-07-06)
+
+
+### Features
+
+* focus today's entry when opening the journal ([dfb8454](https://github.com/devbydaniel/taproot/commit/dfb84548c1bdc19cacea1ee4366bf72679148d7e))
+* open-tasks section on pages listing tasks that link to them ([bfd1225](https://github.com/devbydaniel/taproot/commit/bfd12253929713ba5db94cb336e16e49f1b9f135))
+
 ## [0.3.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.2.0...taproot-v0.3.0) (2026-07-06)
 
 
