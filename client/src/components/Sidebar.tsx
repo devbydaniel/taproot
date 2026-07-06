@@ -1,10 +1,16 @@
-import { isDailyTitle, todayTitle } from '@taproot/shared';
-import { BookOpen, CalendarDays, ListTodo, Plus, Sprout } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { todayTitle } from '@taproot/shared';
+import {
+  BookOpen,
+  CalendarDays,
+  FileText,
+  ListTodo,
+  Plus,
+  Sprout,
+} from 'lucide-react';
+import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
-import { useStore } from '@/store';
 
 const navItemClass = (active: boolean) =>
   cn(
@@ -15,14 +21,8 @@ const navItemClass = (active: boolean) =>
   );
 
 export function Sidebar() {
-  const pages = useStore((s) => s.pages);
-  const remoteEpoch = useStore((s) => s.remoteEpoch);
   const [location, navigate] = useLocation();
   const [draft, setDraft] = useState('');
-
-  useEffect(() => {
-    void api.listPages().then((list) => useStore.getState().setPages(list));
-  }, [remoteEpoch, location]);
 
   const createPage = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -74,35 +74,14 @@ export function Sidebar() {
           <BookOpen className="h-4 w-4" />
           Journal
         </Link>
+        <Link href="/pages" className={navItemClass(location === '/pages')}>
+          <FileText className="h-4 w-4" />
+          Pages
+        </Link>
         <Link href="/tasks" className={navItemClass(location === '/tasks')}>
           <ListTodo className="h-4 w-4" />
           Tasks
         </Link>
-      </nav>
-      <nav className="flex-1 overflow-y-auto px-2 pb-4">
-        <p className="px-2 pb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          Pages
-        </p>
-        {pages
-          .filter((page) => !isDailyTitle(page.title))
-          .map((page) => {
-            const href = `/p/${page.id}`;
-            const active = location === href;
-            return (
-              <Link
-                key={page.id}
-                href={href}
-                className={cn(
-                  'block truncate rounded-md px-2 py-1 text-sm transition-colors',
-                  active
-                    ? 'bg-accent font-medium text-accent-foreground'
-                    : 'text-foreground/80 hover:bg-accent/60',
-                )}
-              >
-                {page.title}
-              </Link>
-            );
-          })}
       </nav>
     </aside>
   );

@@ -5,9 +5,11 @@ import { Sidebar } from '@/components/Sidebar';
 import { api } from '@/lib/api';
 import { startWs } from '@/lib/ws';
 import { JournalView } from '@/pages/JournalView';
+import { PagesView } from '@/pages/PagesView';
 import { PageView } from '@/pages/PageView';
 import { TasksView } from '@/pages/TasksView';
 import { ZoomView } from '@/pages/ZoomView';
+import { useStore } from '@/store';
 
 function HomeRedirect() {
   const [, navigate] = useLocation();
@@ -22,9 +24,18 @@ function HomeRedirect() {
 }
 
 export function App() {
+  const remoteEpoch = useStore((s) => s.remoteEpoch);
+  const [location] = useLocation();
+
   useEffect(() => {
     startWs();
   }, []);
+
+  // keeps the store's page list fresh for the [[ autocomplete and the pages
+  // view; location is a dep so auto-created pages show up after navigation
+  useEffect(() => {
+    void api.listPages().then((list) => useStore.getState().setPages(list));
+  }, [remoteEpoch, location]);
 
   return (
     <div className="flex h-screen">
@@ -32,6 +43,7 @@ export function App() {
       <main className="min-w-0 flex-1 overflow-y-auto">
         <Switch>
           <Route path="/journal" component={JournalView} />
+          <Route path="/pages" component={PagesView} />
           <Route path="/tasks" component={TasksView} />
           <Route path="/p/:id">
             {(params) => <PageView key={params.id} id={params.id} />}
