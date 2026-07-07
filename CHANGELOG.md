@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.5.0...taproot-v0.6.0) (2026-07-07)
+
+
+### Features
+
+* collapsible bullets with persisted state ([1508739](https://github.com/devbydaniel/taproot/commit/1508739844054ef8f4a7c290fa325ec606a93e5a))
+* drawing blocks with embedded Excalidraw ([ab439db](https://github.com/devbydaniel/taproot/commit/ab439dbe26929a0af2e9e22dded767ab18f4ac47))
+
 ## [0.5.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.4.0...taproot-v0.5.0) (2026-07-06)
 
 
