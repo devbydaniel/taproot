@@ -15,6 +15,13 @@
       "when": 1783367451757,
       "tag": "0001_curious_supreme_intelligence",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1783453250217,
+      "tag": "0002_old_microchip",
+      "breakpoints": true
     }
   ]
 }

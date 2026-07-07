@@ -45,6 +45,11 @@ export const opSchema = z.discriminatedUnion('type', [
     id,
   }),
   z.object({
+    type: z.literal('set_collapsed'),
+    id,
+    collapsed: z.boolean(),
+  }),
+  z.object({
     type: z.literal('set_page_pinned'),
     id,
     // fractional index among pinned pages; null = unpin

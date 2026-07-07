@@ -149,6 +149,24 @@ export function BlockEditor({
           },
         },
         {
+          key: 'Mod-ArrowUp',
+          run: (view) => {
+            if (completionStatus(view.state) === 'active') return false;
+            if (variant === 'title') return false;
+            actions.setCollapsed(blockId, true);
+            return true; // consume even on leaf blocks (no Cmd-↑ scroll)
+          },
+        },
+        {
+          key: 'Mod-ArrowDown',
+          run: (view) => {
+            if (completionStatus(view.state) === 'active') return false;
+            if (variant === 'title') return false;
+            actions.setCollapsed(blockId, false);
+            return true;
+          },
+        },
+        {
           // cycle task state: plain → TODO → DONE → plain
           key: 'Mod-Enter',
           run: (view) => {

@@ -1,6 +1,8 @@
 import { parseTask, type Block } from '@taproot/shared';
+import { ChevronRight } from 'lucide-react';
 import { useRef } from 'react';
 import { Link } from 'wouter';
+import { setCollapsed } from '@/actions';
 import { renderedOffsetFromPoint, renderedToRaw } from '@/lib/clickpos';
 import { childrenOf, type OutlineCtx } from '@/lib/outline';
 import { useStore } from '@/store';
@@ -55,7 +57,21 @@ function BlockRow({ block, ctx }: { block: Block; ctx: OutlineCtx }) {
 
   return (
     <div>
-      <div className="group flex items-start gap-1.5 py-[3px]">
+      <div className="group relative flex items-start gap-1.5 py-[3px]">
+        {hasKids && (
+          <button
+            onClick={() => setCollapsed(block.id, !block.collapsed)}
+            title={block.collapsed ? 'Expand' : 'Collapse'}
+            className="absolute top-[8px] -left-[16px] flex h-4 w-4 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:opacity-0 md:group-hover:opacity-100"
+          >
+            <ChevronRight
+              className={
+                'h-3.5 w-3.5 transition-transform ' +
+                (block.collapsed ? '' : 'rotate-90')
+              }
+            />
+          </button>
+        )}
         <Link
           href={`/b/${block.id}`}
           title="Zoom in"
@@ -64,7 +80,7 @@ function BlockRow({ block, ctx }: { block: Block; ctx: OutlineCtx }) {
           <span
             className={
               'block rounded-full bg-muted-foreground/70 transition-all group-hover:bg-foreground/80 ' +
-              (hasKids
+              (hasKids && block.collapsed
                 ? 'h-[7px] w-[7px] ring-3 ring-muted'
                 : 'h-[6px] w-[6px]')
             }
@@ -82,7 +98,7 @@ function BlockRow({ block, ctx }: { block: Block; ctx: OutlineCtx }) {
           )}
         </div>
       </div>
-      {hasKids && (
+      {hasKids && !block.collapsed && (
         <div className="ml-[7px] border-l border-border pl-[23px]">
           <OutlineTree parentId={block.id} ctx={ctx} />
         </div>

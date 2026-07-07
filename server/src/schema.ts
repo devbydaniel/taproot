@@ -26,6 +26,10 @@ export const blocks = sqliteTable(
     parentId: text('parent_id'),
     orderKey: text('order_key').notNull(),
     text: text('text').notNull().default(''),
+    // children hidden in outline views; persisted UI state, not content
+    collapsed: integer('collapsed', { mode: 'boolean' })
+      .notNull()
+      .default(false),
     createdAt: integer('created_at').notNull(),
     updatedAt: integer('updated_at').notNull(),
   },

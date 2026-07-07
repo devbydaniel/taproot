@@ -192,6 +192,15 @@ function applyOp(store: Store, op: Op) {
       store.db.delete(blocks).where(eq(blocks.id, op.id)).run();
       break;
     }
+    case 'set_collapsed': {
+      // presentation state, not content: updatedAt stays untouched
+      store.db
+        .update(blocks)
+        .set({ collapsed: op.collapsed })
+        .where(eq(blocks.id, op.id))
+        .run();
+      break;
+    }
     case 'set_page_pinned': {
       store.db
         .update(pages)

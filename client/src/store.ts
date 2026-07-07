@@ -45,6 +45,20 @@ function collectSubtree(
   return doomed;
 }
 
+/** true iff `blockId` sits somewhere below `ancestorId` (not equal to it) */
+function isStrictDescendant(
+  blocks: Record<string, Block>,
+  blockId: string,
+  ancestorId: string,
+): boolean {
+  let current = blocks[blockId];
+  while (current?.parentId) {
+    if (current.parentId === ancestorId) return true;
+    current = blocks[current.parentId];
+  }
+  return false;
+}
+
 function applyOpToBlocks(
   blocks: Record<string, Block>,
   op: Op,
@@ -62,6 +76,7 @@ function applyOpToBlocks(
           parentId: op.parentId,
           orderKey: op.orderKey,
           text: op.text,
+          collapsed: false,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         },
@@ -86,6 +101,12 @@ function applyOpToBlocks(
           updatedAt: Date.now(),
         },
       };
+    }
+    case 'set_collapsed': {
+      const block = blocks[op.id];
+      if (!block) return blocks;
+      // presentation state, not content: updatedAt stays untouched
+      return { ...blocks, [op.id]: { ...block, collapsed: op.collapsed } };
     }
     case 'delete_block': {
       // mirror the server's cascade: drop the block and all descendants
@@ -146,7 +167,15 @@ export const useStore = create<OutlineState>((set) => ({
         blocks = applyOpToBlocks(blocks, op);
         pages = applyOpToPages(pages, op);
       }
-      return { blocks, pages };
+      // a collapse that hides the focused block moves focus to the collapsed
+      // ancestor (Roam behavior); covers both local and remote collapses
+      let focused = state.focused;
+      for (const op of ops) {
+        if (op.type !== 'set_collapsed' || !op.collapsed || !focused) continue;
+        if (isStrictDescendant(blocks, focused.blockId, op.id))
+          focused = { blockId: op.id, cursor: 'end' };
+      }
+      return { blocks, pages, focused };
     }),
   bumpRemoteEpoch: () =>
     set((state) => ({ remoteEpoch: state.remoteEpoch + 1 })),

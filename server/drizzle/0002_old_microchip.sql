@@ -1,0 +1,1 @@
+ALTER TABLE `blocks` ADD `collapsed` integer DEFAULT false NOT NULL;

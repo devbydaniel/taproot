@@ -76,6 +76,16 @@ export function togglePagePinned(pageId: string) {
   dispatch([{ type: 'set_page_pinned', id: pageId, orderKey }]);
 }
 
+/** Chevron click / Mod-ArrowUp / Mod-ArrowDown: hide or show a block's children. */
+export function setCollapsed(blockId: string, collapsed: boolean) {
+  const { blocks } = useStore.getState();
+  const block = blocks[blockId];
+  if (!block || block.collapsed === collapsed) return;
+  if (collapsed && !hasChildren(blocks, blockId)) return;
+  flushText();
+  dispatch([{ type: 'set_collapsed', id: blockId, collapsed }]);
+}
+
 // --- structural edits ---
 
 /** Enter: split the block at the cursor; text after the cursor moves to the new block. */
@@ -90,8 +100,9 @@ export function splitBlock(blockId: string, cursor: number, _ctx: OutlineCtx) {
 
   let parentId: string | null;
   let orderKey: string;
-  if (hasChildren(blocks, blockId)) {
+  if (hasChildren(blocks, blockId) && !block.collapsed) {
     // keep children attached to their text: new block becomes the first child
+    // (unless collapsed — then it becomes a visible next sibling instead)
     parentId = blockId;
     const kids = childrenOf(blocks, block.pageId, blockId);
     orderKey = generateKeyBetween(null, kids[0]?.orderKey ?? null);
@@ -137,7 +148,13 @@ export function indentBlock(blockId: string, cursor: number, _ctx: OutlineCtx) {
     null,
   );
   flushText();
-  dispatch([{ type: 'move_block', id: blockId, parentId: prev.id, orderKey }]);
+  dispatch([
+    // auto-expand a collapsed new parent so the indented block stays visible
+    ...(prev.collapsed
+      ? [{ type: 'set_collapsed', id: prev.id, collapsed: false } as const]
+      : []),
+    { type: 'move_block', id: blockId, parentId: prev.id, orderKey },
+  ]);
   setFocus({ blockId, cursor });
 }
 

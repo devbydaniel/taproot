@@ -429,6 +429,108 @@ describe('getJournal', () => {
   });
 });
 
+describe('collapse state', () => {
+  function setupTree() {
+    const page = setupPage('Home');
+    applyOps(store, [
+      {
+        type: 'create_block',
+        id: 'parent',
+        pageId: page.id,
+        parentId: null,
+        orderKey: 'a0',
+        text: 'parent',
+      },
+      {
+        type: 'create_block',
+        id: 'child',
+        pageId: page.id,
+        parentId: 'parent',
+        orderKey: 'a0',
+        text: 'child',
+      },
+    ]);
+    return page;
+  }
+
+  it('new blocks default to expanded', () => {
+    const page = setupTree();
+    const payload = getPagePayload(store, page.id);
+    expect(payload?.blocks.every((b) => !b.collapsed)).toBe(true);
+  });
+
+  it('set_collapsed round-trips through getPagePayload', () => {
+    const page = setupTree();
+    applyOps(store, [{ type: 'set_collapsed', id: 'parent', collapsed: true }]);
+    let parent = getPagePayload(store, page.id)?.blocks.find(
+      (b) => b.id === 'parent',
+    );
+    expect(parent?.collapsed).toBe(true);
+
+    applyOps(store, [
+      { type: 'set_collapsed', id: 'parent', collapsed: false },
+    ]);
+    parent = getPagePayload(store, page.id)?.blocks.find(
+      (b) => b.id === 'parent',
+    );
+    expect(parent?.collapsed).toBe(false);
+  });
+
+  it('is a silent no-op for unknown block ids', () => {
+    const page = setupTree();
+    applyOps(store, [{ type: 'set_collapsed', id: 'nope', collapsed: true }]);
+    expect(getPagePayload(store, page.id)?.blocks).toHaveLength(2);
+  });
+
+  it('survives move_block', () => {
+    const page = setupTree();
+    applyOps(store, [
+      {
+        type: 'create_block',
+        id: 'other',
+        pageId: page.id,
+        parentId: null,
+        orderKey: 'a1',
+        text: 'other',
+      },
+      { type: 'set_collapsed', id: 'parent', collapsed: true },
+      { type: 'move_block', id: 'parent', parentId: 'other', orderKey: 'a0' },
+    ]);
+    const parent = getPagePayload(store, page.id)?.blocks.find(
+      (b) => b.id === 'parent',
+    );
+    expect(parent?.parentId).toBe('other');
+    expect(parent?.collapsed).toBe(true);
+  });
+
+  it('is carried by getZoomPayload', () => {
+    setupTree();
+    applyOps(store, [{ type: 'set_collapsed', id: 'child', collapsed: true }]);
+    const zoom = getZoomPayload(store, 'parent');
+    expect(zoom?.blocks.find((b) => b.id === 'child')?.collapsed).toBe(true);
+  });
+
+  it('does not disturb the task index or linked refs', () => {
+    const page = setupPage('Home');
+    applyOps(store, [
+      {
+        type: 'create_block',
+        id: 't1',
+        pageId: page.id,
+        parentId: null,
+        orderKey: 'a0',
+        text: 'TODO ship [[Topic]]',
+      },
+    ]);
+    applyOps(store, [{ type: 'set_collapsed', id: 't1', collapsed: true }]);
+
+    const groups = getTaskGroups(store);
+    expect(groups.flatMap((g) => g.blocks.map((b) => b.id))).toContain('t1');
+    const topic = ensurePage(store, 'Topic');
+    expect(getPagePayload(store, topic.id)?.linkedRefs).toHaveLength(1);
+  });
+});
+
 describe('page pinning', () => {
   it('pins a page via set_page_pinned', () => {
     const page = setupPage('Projects');

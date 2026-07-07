@@ -30,7 +30,9 @@ export function visibleOrder(
   const walk = (parentId: string | null) => {
     for (const child of childrenOf(blocks, ctx.pageId, parentId)) {
       result.push(child);
-      walk(child.id);
+      // a collapsed block is itself visible, but its subtree is not; the view
+      // root's own flag is never consulted, so a zoomed block always expands
+      if (!child.collapsed) walk(child.id);
     }
   };
   walk(ctx.rootParentId);

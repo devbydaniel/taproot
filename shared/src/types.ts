@@ -16,6 +16,8 @@ export interface Block {
   /** fractional index key; siblings sort lexicographically */
   orderKey: string;
   text: string;
+  /** children hidden in outline views; persisted UI state, not content */
+  collapsed: boolean;
   createdAt: number;
   updatedAt: number;
 }
