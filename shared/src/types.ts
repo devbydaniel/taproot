@@ -8,6 +8,8 @@ export interface Page {
   pinnedOrderKey: string | null;
 }
 
+export type BlockKind = 'text' | 'drawing';
+
 export interface Block {
   id: string;
   pageId: string;
@@ -16,6 +18,9 @@ export interface Block {
   /** fractional index key; siblings sort lexicographically */
   orderKey: string;
   text: string;
+  kind: BlockKind;
+  /** opaque payload for non-text kinds (drawing: scene JSON); never indexed */
+  data: string | null;
   /** children hidden in outline views; persisted UI state, not content */
   collapsed: boolean;
   createdAt: number;

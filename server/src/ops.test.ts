@@ -563,3 +563,102 @@ describe('page pinning', () => {
     expect(row?.pinnedOrderKey).toBeNull();
   });
 });
+
+describe('drawing blocks', () => {
+  function setupDrawing(text = '/draw') {
+    const page = setupPage('Home');
+    applyOps(store, [
+      {
+        type: 'create_block',
+        id: 'd1',
+        pageId: page.id,
+        parentId: null,
+        orderKey: 'a0',
+        text,
+      },
+    ]);
+    // conversion as the client dispatches it: clear text, then switch kind
+    applyOps(store, [
+      { type: 'update_text', id: 'd1', text: '' },
+      { type: 'set_kind', id: 'd1', kind: 'drawing' },
+    ]);
+    return page;
+  }
+
+  it('new blocks default to kind text with no data', () => {
+    const page = setupPage('Home');
+    applyOps(store, [
+      {
+        type: 'create_block',
+        id: 'b1',
+        pageId: page.id,
+        parentId: null,
+        orderKey: 'a0',
+        text: 'plain',
+      },
+    ]);
+    const block = getPagePayload(store, page.id)?.blocks[0];
+    expect(block?.kind).toBe('text');
+    expect(block?.data).toBeNull();
+  });
+
+  it('converts a block via update_text + set_kind', () => {
+    const page = setupDrawing();
+    const block = getPagePayload(store, page.id)?.blocks[0];
+    expect(block?.kind).toBe('drawing');
+    expect(block?.text).toBe('');
+  });
+
+  it('stores data verbatim without touching refs or tasks', () => {
+    const page = setupDrawing();
+    const data = '{"elements":[{"text":"see [[Ghost]] TODO x"}]}';
+    applyOps(store, [{ type: 'update_data', id: 'd1', data }]);
+
+    const block = getPagePayload(store, page.id)?.blocks[0];
+    expect(block?.data).toBe(data);
+    // scene JSON is opaque: no page auto-created, no task indexed
+    expect(listPages(store).map((p) => p.title)).not.toContain('Ghost');
+    expect(getTaskGroups(store)).toHaveLength(0);
+  });
+
+  it('keeps drawing data out of reindexTasks', () => {
+    setupDrawing();
+    applyOps(store, [
+      { type: 'update_data', id: 'd1', data: 'TODO looks like a task' },
+    ]);
+    reindexTasks(store);
+    expect(getTaskGroups(store)).toHaveLength(0);
+  });
+
+  it('cascades delete_block through a drawing with children', () => {
+    const page = setupDrawing();
+    applyOps(store, [
+      {
+        type: 'create_block',
+        id: 'child',
+        pageId: page.id,
+        parentId: 'd1',
+        orderKey: 'a0',
+        text: 'note under drawing',
+      },
+    ]);
+    applyOps(store, [{ type: 'delete_block', id: 'd1' }]);
+    expect(getPagePayload(store, page.id)?.blocks).toHaveLength(0);
+  });
+
+  it('carries kind and data through zoom payloads', () => {
+    setupDrawing();
+    applyOps(store, [
+      { type: 'update_data', id: 'd1', data: '{"elements":[]}' },
+    ]);
+    const zoom = getZoomPayload(store, 'd1');
+    expect(zoom?.block.kind).toBe('drawing');
+    expect(zoom?.block.data).toBe('{"elements":[]}');
+  });
+
+  it('update_data is a silent no-op for unknown block ids', () => {
+    const page = setupDrawing();
+    applyOps(store, [{ type: 'update_data', id: 'nope', data: 'x' }]);
+    expect(getPagePayload(store, page.id)?.blocks).toHaveLength(1);
+  });
+});

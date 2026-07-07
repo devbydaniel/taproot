@@ -181,13 +181,9 @@ export function outdentBlock(blockId: string, cursor: number, ctx: OutlineCtx) {
   setFocus({ blockId, cursor });
 }
 
-/** Backspace at position 0: delete the block if it is empty and childless. */
-export function deleteEmptyBlock(blockId: string, ctx: OutlineCtx): boolean {
+/** Delete a block (subtree cascades), focusing the previous visible block. */
+export function deleteBlock(blockId: string, ctx: OutlineCtx) {
   const { blocks, setFocus } = useStore.getState();
-  const block = blocks[blockId];
-  if (!block) return false;
-  if (block.text !== '' || hasChildren(blocks, blockId)) return false;
-
   const order = visibleOrder(blocks, ctx);
   const index = order.findIndex((b) => b.id === blockId);
   const prev = index > 0 ? order[index - 1] : null;
@@ -196,7 +192,37 @@ export function deleteEmptyBlock(blockId: string, ctx: OutlineCtx): boolean {
   flushText();
   dispatch([{ type: 'delete_block', id: blockId }]);
   setFocus(prev ? { blockId: prev.id, cursor: 'end' } : null);
+}
+
+/** Backspace at position 0: delete the block if it is empty and childless. */
+export function deleteEmptyBlock(blockId: string, ctx: OutlineCtx): boolean {
+  const { blocks } = useStore.getState();
+  const block = blocks[blockId];
+  if (!block) return false;
+  if (block.text !== '' || hasChildren(blocks, blockId)) return false;
+  deleteBlock(blockId, ctx);
   return true;
+}
+
+// --- drawing blocks ---
+
+/** '/draw' + Enter: turn the block into a drawing and start drawing. */
+export function convertToDrawing(blockId: string) {
+  const { blocks, setFocus, setOpenDrawing } = useStore.getState();
+  if (!blocks[blockId]) return;
+  pendingText.delete(blockId);
+  flushText();
+  dispatch([
+    { type: 'update_text', id: blockId, text: '' },
+    { type: 'set_kind', id: blockId, kind: 'drawing' },
+  ]);
+  setFocus({ blockId, cursor: 'end' });
+  setOpenDrawing(blockId);
+}
+
+/** Persist a drawing's scene JSON (the editor debounces its calls). */
+export function saveDrawing(blockId: string, data: string) {
+  dispatch([{ type: 'update_data', id: blockId, data }]);
 }
 
 /** Arrow navigation across blocks. dir -1 = previous, 1 = next in visible order. */

@@ -40,6 +40,30 @@ function wikiCompletionSource(
   return { from: match.from + 2, options, filter: false };
 }
 
+/**
+ * Slash commands: a block whose whole text is `/…` offers block-level
+ * transformations. Only `/draw` for now; add future commands here.
+ */
+function makeSlashCompletionSource(blockId: string) {
+  return (context: CompletionContext): CompletionResult | null => {
+    const match = context.matchBefore(/^\/[a-zA-Z]*$/);
+    if (!match) return null;
+    const query = context.state.sliceDoc(match.from + 1, context.pos);
+    if (!'draw'.startsWith(query.toLowerCase())) return null;
+    return {
+      from: match.from,
+      filter: false,
+      options: [
+        {
+          label: '/draw',
+          detail: 'insert a drawing',
+          apply: () => actions.convertToDrawing(blockId),
+        },
+      ],
+    };
+  };
+}
+
 /** paste etc. must never introduce newlines — a block is a single line */
 const singleLine = EditorState.transactionFilter.of((tr) => {
   if (!tr.docChanged || !tr.newDoc.sliceString(0).includes('\n')) return tr;
@@ -91,6 +115,11 @@ export function BlockEditor({
               return acceptCompletion(view);
             if (variant === 'title') {
               view.contentDOM.blur();
+              return true;
+            }
+            // fallback for a dismissed completion popup
+            if (view.state.doc.toString().trim() === '/draw') {
+              actions.convertToDrawing(blockId);
               return true;
             }
             actions.splitBlock(blockId, view.state.selection.main.head, ctx);
@@ -202,7 +231,12 @@ export function BlockEditor({
           editKeymap,
           history(),
           keymap.of([...historyKeymap, ...defaultKeymap]),
-          autocompletion({ override: [wikiCompletionSource] }),
+          autocompletion({
+            override:
+              variant === 'title'
+                ? [wikiCompletionSource]
+                : [wikiCompletionSource, makeSlashCompletionSource(blockId)],
+          }),
           EditorView.lineWrapping,
           singleLine,
           EditorView.updateListener.of((update) => {

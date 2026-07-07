@@ -8,6 +8,7 @@ import { childrenOf, type OutlineCtx } from '@/lib/outline';
 import { useStore } from '@/store';
 import { BlockContent } from './BlockContent';
 import { BlockEditor } from './BlockEditor';
+import { DrawingBlock } from './drawing/DrawingBlock';
 
 export function OutlineTree({
   parentId,
@@ -88,10 +89,17 @@ function BlockRow({ block, ctx }: { block: Block; ctx: OutlineCtx }) {
         </Link>
         <div
           ref={contentRef}
-          className="min-w-0 flex-1 cursor-text leading-6"
-          onClick={isFocused ? undefined : focusAtPoint}
+          className={
+            'min-w-0 flex-1 leading-6' +
+            (block.kind === 'drawing' ? '' : ' cursor-text')
+          }
+          onClick={
+            block.kind === 'drawing' || isFocused ? undefined : focusAtPoint
+          }
         >
-          {isFocused ? (
+          {block.kind === 'drawing' ? (
+            <DrawingBlock block={block} ctx={ctx} />
+          ) : isFocused ? (
             <BlockEditor blockId={block.id} ctx={ctx} />
           ) : (
             <BlockContent block={block} />

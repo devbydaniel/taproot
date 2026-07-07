@@ -12,6 +12,11 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <title>Taproot</title>
     <script>
+      // Excalidraw loads fonts from a CDN unless pointed at our own copy
+      // (vite-plugin-static-copy puts them at /excalidraw/fonts/)
+      window.EXCALIDRAW_ASSET_PATH = '/excalidraw/';
+    </script>
+    <script>
       // apply the persisted theme before first paint to avoid a light flash
       const theme = localStorage.getItem('taproot-theme');
       if (

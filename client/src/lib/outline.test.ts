@@ -14,6 +14,8 @@ function block(
     parentId,
     orderKey,
     text: id,
+    kind: 'text',
+    data: null,
     collapsed,
     createdAt: 0,
     updatedAt: 0,

@@ -11,6 +11,8 @@ interface OutlineState {
   pages: Page[];
   blocks: Record<string, Block>;
   focused: FocusTarget | null;
+  /** drawing block whose fullscreen editor is open, if any */
+  openDrawingId: string | null;
   /** bumped whenever remote ops arrive, so views can refetch derived data (linked refs, sidebar) */
   remoteEpoch: number;
   setPages: (pages: Page[]) => void;
@@ -20,6 +22,7 @@ interface OutlineState {
   applyOps: (ops: Op[]) => void;
   bumpRemoteEpoch: () => void;
   setFocus: (target: FocusTarget | null) => void;
+  setOpenDrawing: (blockId: string | null) => void;
 }
 
 /** the subtree rooted at rootId, found by fixpoint since blocks is unordered */
@@ -59,6 +62,17 @@ function isStrictDescendant(
   return false;
 }
 
+/** patch one block, or pass through unchanged if it isn't loaded */
+function patchBlock(
+  blocks: Record<string, Block>,
+  id: string,
+  patch: Partial<Block>,
+): Record<string, Block> {
+  const block = blocks[id];
+  if (!block) return blocks;
+  return { ...blocks, [id]: { ...block, ...patch } };
+}
+
 function applyOpToBlocks(
   blocks: Record<string, Block>,
   op: Op,
@@ -76,38 +90,37 @@ function applyOpToBlocks(
           parentId: op.parentId,
           orderKey: op.orderKey,
           text: op.text,
+          kind: 'text',
+          data: null,
           collapsed: false,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         },
       };
-    case 'update_text': {
-      const block = blocks[op.id];
-      if (!block) return blocks;
-      return {
-        ...blocks,
-        [op.id]: { ...block, text: op.text, updatedAt: Date.now() },
-      };
-    }
-    case 'move_block': {
-      const block = blocks[op.id];
-      if (!block) return blocks;
-      return {
-        ...blocks,
-        [op.id]: {
-          ...block,
-          parentId: op.parentId,
-          orderKey: op.orderKey,
-          updatedAt: Date.now(),
-        },
-      };
-    }
-    case 'set_collapsed': {
-      const block = blocks[op.id];
-      if (!block) return blocks;
+    case 'update_text':
+      return patchBlock(blocks, op.id, {
+        text: op.text,
+        updatedAt: Date.now(),
+      });
+    case 'move_block':
+      return patchBlock(blocks, op.id, {
+        parentId: op.parentId,
+        orderKey: op.orderKey,
+        updatedAt: Date.now(),
+      });
+    case 'set_collapsed':
       // presentation state, not content: updatedAt stays untouched
-      return { ...blocks, [op.id]: { ...block, collapsed: op.collapsed } };
-    }
+      return patchBlock(blocks, op.id, { collapsed: op.collapsed });
+    case 'set_kind':
+      return patchBlock(blocks, op.id, {
+        kind: op.kind,
+        updatedAt: Date.now(),
+      });
+    case 'update_data':
+      return patchBlock(blocks, op.id, {
+        data: op.data,
+        updatedAt: Date.now(),
+      });
     case 'delete_block': {
       // mirror the server's cascade: drop the block and all descendants
       const doomed = collectSubtree(blocks, op.id);
@@ -142,6 +155,7 @@ export const useStore = create<OutlineState>((set) => ({
   pages: [],
   blocks: {},
   focused: null,
+  openDrawingId: null,
   remoteEpoch: 0,
   setPages: (pages) => set({ pages }),
   loadPageBlocks: (pageId, incoming) =>
@@ -180,4 +194,5 @@ export const useStore = create<OutlineState>((set) => ({
   bumpRemoteEpoch: () =>
     set((state) => ({ remoteEpoch: state.remoteEpoch + 1 })),
   setFocus: (focused) => set({ focused }),
+  setOpenDrawing: (openDrawingId) => set({ openDrawingId }),
 }));

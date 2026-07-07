@@ -50,6 +50,18 @@ export const opSchema = z.discriminatedUnion('type', [
     collapsed: z.boolean(),
   }),
   z.object({
+    type: z.literal('set_kind'),
+    id,
+    kind: z.enum(['text', 'drawing']),
+  }),
+  z.object({
+    type: z.literal('update_data'),
+    id,
+    // opaque payload for non-text kinds; bounded so a scene can't blow up
+    // request bodies or the WebSocket broadcast
+    data: z.string().max(2_000_000).nullable(),
+  }),
+  z.object({
     type: z.literal('set_page_pinned'),
     id,
     // fractional index among pinned pages; null = unpin

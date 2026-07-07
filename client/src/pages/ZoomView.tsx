@@ -1,17 +1,19 @@
-import { segmentText, type ZoomPayload } from '@taproot/shared';
+import { segmentText, type Block, type ZoomPayload } from '@taproot/shared';
 import { ChevronRight } from 'lucide-react';
 import { Fragment, useEffect, useState } from 'react';
 import { Link } from 'wouter';
 import * as actions from '@/actions';
 import { BlockEditor } from '@/components/BlockEditor';
+import { DrawingBlock } from '@/components/drawing/DrawingBlock';
 import { OutlineTree } from '@/components/OutlineTree';
 import { StaticText } from '@/components/StaticText';
 import { api } from '@/lib/api';
 import { hasChildren, visibleOrder, type OutlineCtx } from '@/lib/outline';
 import { useStore } from '@/store';
 
-function renderedPreview(text: string, max = 40): string {
-  const rendered = segmentText(text)
+function renderedPreview(block: Block, max = 40): string {
+  if (block.kind === 'drawing') return 'Drawing';
+  const rendered = segmentText(block.text)
     .map((segment) => (segment.type === 'text' ? segment.value : segment.title))
     .join('');
   if (rendered.trim() === '') return 'Untitled';
@@ -81,14 +83,16 @@ export function ZoomView({ id }: { id: string }) {
               href={`/b/${ancestor.id}`}
               className="hover:text-foreground hover:underline"
             >
-              {renderedPreview(ancestor.text)}
+              {renderedPreview(ancestor)}
             </Link>
           </Fragment>
         ))}
       </nav>
 
       <div className="mb-6">
-        {isTitleFocused ? (
+        {(liveBlock ?? payload.block).kind === 'drawing' ? (
+          <DrawingBlock block={liveBlock ?? payload.block} ctx={ctx} />
+        ) : isTitleFocused ? (
           <BlockEditor blockId={id} ctx={ctx} variant="title" />
         ) : (
           <h1

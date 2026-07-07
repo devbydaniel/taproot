@@ -201,6 +201,25 @@ function applyOp(store: Store, op: Op) {
         .run();
       break;
     }
+    case 'set_kind': {
+      store.db
+        .update(blocks)
+        .set({ kind: op.kind, updatedAt: now })
+        .where(eq(blocks.id, op.id))
+        .run();
+      break;
+    }
+    case 'update_data': {
+      // data is an opaque payload — deliberately no updateRefs/updateTaskIndex:
+      // a drawing whose scene JSON contains "[[foo]]" or "TODO" must not
+      // pollute the derived indexes
+      store.db
+        .update(blocks)
+        .set({ data: op.data, updatedAt: now })
+        .where(eq(blocks.id, op.id))
+        .run();
+      break;
+    }
     case 'set_page_pinned': {
       store.db
         .update(pages)
