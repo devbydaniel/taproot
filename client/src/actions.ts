@@ -1,3 +1,4 @@
+import { arrayMove } from '@dnd-kit/sortable';
 import { parseTask, withTaskState, type Op } from '@taproot/shared';
 import { generateKeyBetween } from 'fractional-indexing';
 import { nanoid } from 'nanoid';
@@ -73,6 +74,23 @@ export function togglePagePinned(pageId: string) {
     .filter((k): k is string => k !== null)
     .sort();
   const orderKey = generateKeyBetween(keys[keys.length - 1] ?? null, null);
+  dispatch([{ type: 'set_page_pinned', id: pageId, orderKey }]);
+}
+
+/** Drag reorder: move a pinned page so it lands at `targetIndex` in the pinned list. */
+export function movePinnedPage(pageId: string, targetIndex: number) {
+  const { pages } = useStore.getState();
+  const pinned = pages
+    .filter((p) => p.pinnedOrderKey !== null)
+    .sort((a, b) => (a.pinnedOrderKey! < b.pinnedOrderKey! ? -1 : 1));
+  const from = pinned.findIndex((p) => p.id === pageId);
+  if (from === -1 || from === targetIndex) return;
+  const moved = arrayMove(pinned, from, targetIndex);
+  const i = moved.findIndex((p) => p.id === pageId);
+  const orderKey = generateKeyBetween(
+    moved[i - 1]?.pinnedOrderKey ?? null,
+    moved[i + 1]?.pinnedOrderKey ?? null,
+  );
   dispatch([{ type: 'set_page_pinned', id: pageId, orderKey }]);
 }
 

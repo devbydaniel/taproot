@@ -122,7 +122,10 @@ function buildGroups(
     };
     const roots = pageMatches
       .filter((b) => !hasMatchingAncestor(b))
-      .sort((a, b) => a.orderKey.localeCompare(b.orderKey));
+      // code-point comparison — locale collation misorders mixed-case keys
+      .sort((a, b) =>
+        a.orderKey < b.orderKey ? -1 : a.orderKey > b.orderKey ? 1 : 0,
+      );
 
     const seen = new Set<string>();
     const groupBlocks: Block[] = [];

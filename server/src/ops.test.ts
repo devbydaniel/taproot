@@ -549,6 +549,15 @@ describe('page pinning', () => {
     expect(row?.pinnedOrderKey).toBeNull();
   });
 
+  it('reorders by re-pinning with a new orderKey', () => {
+    const page = setupPage('Projects');
+    applyOps(store, [{ type: 'set_page_pinned', id: page.id, orderKey: 'a1' }]);
+    applyOps(store, [{ type: 'set_page_pinned', id: page.id, orderKey: 'a0' }]);
+
+    const row = listPages(store).find((p) => p.id === page.id);
+    expect(row?.pinnedOrderKey).toBe('a0');
+  });
+
   it('is a silent no-op for unknown page ids', () => {
     const page = setupPage('Projects');
     applyOps(store, [{ type: 'set_page_pinned', id: 'nope', orderKey: 'a0' }]);
