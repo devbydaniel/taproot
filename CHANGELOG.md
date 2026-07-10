@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.7.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.6.0...taproot-v0.7.0) (2026-07-10)
+
+
+### Features
+
+* clickable URLs in bullets with site favicons ([fa8ac37](https://github.com/devbydaniel/taproot/commit/fa8ac3738bdafd158c3e8acc2aa21989990ef525))
+* drag and drop reordering of pinned pages in the sidebar ([a6c5205](https://github.com/devbydaniel/taproot/commit/a6c52053f84edb911e4e347564df2cdce1bde167))
+* pressing Enter on an empty bullet outdents it ([4df7217](https://github.com/devbydaniel/taproot/commit/4df7217b6c9e361eebd3739e465e9b46675bedda))
+
+
+### Bug Fixes
+
+* **deps:** override lodash-es to 4.18.1 to resolve high npm audit advisory ([c006405](https://github.com/devbydaniel/taproot/commit/c0064051b02e654e65bf572833a3d3af98f1bd35))
+
 ## [0.6.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.5.0...taproot-v0.6.0) (2026-07-07)
 
 
