@@ -53,12 +53,13 @@ export function renderedToRaw(rawText: string, renderedOffset: number): number {
   let rendered = 0;
   let raw = 0;
   for (const segment of segmentText(rawText)) {
-    if (segment.type === 'text') {
-      if (renderedOffset <= rendered + segment.value.length) {
+    if (segment.type === 'text' || segment.type === 'url') {
+      const value = segment.type === 'text' ? segment.value : segment.url;
+      if (renderedOffset <= rendered + value.length) {
         return raw + (renderedOffset - rendered);
       }
-      rendered += segment.value.length;
-      raw += segment.value.length;
+      rendered += value.length;
+      raw += value.length;
     } else {
       if (renderedOffset <= rendered + segment.title.length) {
         return raw + segment.raw.length;

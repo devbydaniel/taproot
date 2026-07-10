@@ -14,7 +14,13 @@ import { useStore } from '@/store';
 function renderedPreview(block: Block, max = 40): string {
   if (block.kind === 'drawing') return 'Drawing';
   const rendered = segmentText(block.text)
-    .map((segment) => (segment.type === 'text' ? segment.value : segment.title))
+    .map((segment) =>
+      segment.type === 'text'
+        ? segment.value
+        : segment.type === 'url'
+          ? segment.url
+          : segment.title,
+    )
     .join('');
   if (rendered.trim() === '') return 'Untitled';
   return rendered.length > max ? `${rendered.slice(0, max)}…` : rendered;

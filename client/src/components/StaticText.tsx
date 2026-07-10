@@ -3,7 +3,41 @@ import { useLocation } from 'wouter';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
-/** Rendered (non-editing) block text: wikilinks become clickable, markup hidden. */
+function faviconUrl(url: string): string | null {
+  try {
+    return `${new URL(url).origin}/favicon.ico`;
+  } catch {
+    return null;
+  }
+}
+
+/** External URL as a clickable link, prefixed by the site's favicon when it loads. */
+function UrlLink({ url }: { url: string }) {
+  const favicon = faviconUrl(url);
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(event) => event.stopPropagation()}
+      className="cursor-pointer break-all text-link hover:underline"
+    >
+      {favicon && (
+        <img
+          src={favicon}
+          alt=""
+          className="mr-1 inline size-4 align-text-bottom"
+          onError={(event) => {
+            event.currentTarget.style.display = 'none';
+          }}
+        />
+      )}
+      {url}
+    </a>
+  );
+}
+
+/** Rendered (non-editing) block text: wikilinks and URLs become clickable, markup hidden. */
 export function StaticText({
   text,
   className,
@@ -30,6 +64,8 @@ export function StaticText({
       {segmentText(text).map((segment, index) =>
         segment.type === 'text' ? (
           <span key={index}>{segment.value}</span>
+        ) : segment.type === 'url' ? (
+          <UrlLink key={index} url={segment.url} />
         ) : (
           <a
             key={index}
