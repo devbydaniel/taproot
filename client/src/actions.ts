@@ -159,14 +159,19 @@ export function indentBlock(blockId: string, cursor: number, _ctx: OutlineCtx) {
 }
 
 /** Shift-Tab: become the sibling right after the current parent. */
-export function outdentBlock(blockId: string, cursor: number, ctx: OutlineCtx) {
+export function outdentBlock(
+  blockId: string,
+  cursor: number,
+  ctx: OutlineCtx,
+): boolean {
   const { blocks, setFocus } = useStore.getState();
   const block = blocks[blockId];
-  if (!block) return;
+  if (!block) return false;
   // already top-level of the current view (page root or zoom root)
-  if (block.parentId === null || block.parentId === ctx.rootParentId) return;
+  if (block.parentId === null || block.parentId === ctx.rootParentId)
+    return false;
   const parent = blocks[block.parentId];
-  if (!parent) return;
+  if (!parent) return false;
 
   const parentSiblings = siblingsOf(blocks, parent);
   const parentIndex = parentSiblings.findIndex((b) => b.id === parent.id);
@@ -179,6 +184,7 @@ export function outdentBlock(blockId: string, cursor: number, ctx: OutlineCtx) {
     { type: 'move_block', id: blockId, parentId: parent.parentId, orderKey },
   ]);
   setFocus({ blockId, cursor });
+  return true;
 }
 
 /** Delete a block (subtree cascades), focusing the previous visible block. */

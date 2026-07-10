@@ -122,6 +122,13 @@ export function BlockEditor({
               actions.convertToDrawing(blockId);
               return true;
             }
+            // Enter on an empty bullet outdents instead of splitting
+            if (
+              view.state.doc.length === 0 &&
+              actions.outdentBlock(blockId, 0, ctx)
+            ) {
+              return true;
+            }
             actions.splitBlock(blockId, view.state.selection.main.head, ctx);
             return true;
           },
