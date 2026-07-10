@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/devbydaniel/taproot/compare/taproot-v0.7.0...taproot-v0.7.1) (2026-07-10)
+
+
+### Bug Fixes
+
+* **deps:** repair lockfile corrupted by npm overrides bug ([5d2cf9b](https://github.com/devbydaniel/taproot/commit/5d2cf9b8fc543322a0c2fde2dfacb9a84a8a8d2b))
+
 ## [0.7.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.6.0...taproot-v0.7.0) (2026-07-10)
 
 
