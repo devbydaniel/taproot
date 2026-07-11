@@ -139,7 +139,16 @@ function buildGroups(
     }
     groups.push({ page, rootIds: roots.map((b) => b.id), blocks: groupBlocks });
   }
-  return groups.sort((a, b) => a.page.title.localeCompare(b.page.title));
+  // daily pages first, newest to oldest (ISO titles sort chronologically as
+  // strings); named pages after, alphabetical
+  return groups.sort((a, b) => {
+    const aDaily = isDailyTitle(a.page.title);
+    const bDaily = isDailyTitle(b.page.title);
+    if (aDaily !== bDaily) return aDaily ? -1 : 1;
+    return aDaily
+      ? b.page.title.localeCompare(a.page.title)
+      : a.page.title.localeCompare(b.page.title);
+  });
 }
 
 function groupByPage(store: Store, matching: Block[]): LinkedRefGroup[] {

@@ -111,6 +111,34 @@ describe('applyOps', () => {
     ]);
   });
 
+  it('orders linked ref groups with newer daily notes first', () => {
+    const older = setupPage('2026-01-05');
+    const newer = setupPage('2026-07-04');
+    const named = setupPage('Projects');
+    const block = (id: string, pageId: string) =>
+      ({
+        type: 'create_block',
+        id,
+        pageId,
+        parentId: null,
+        orderKey: 'a0',
+        text: 'see [[Target]]',
+      }) as const;
+    applyOps(store, [
+      block('b1', older.id),
+      block('b2', newer.id),
+      block('b3', named.id),
+    ]);
+
+    const target = ensurePage(store, 'Target');
+    const groups = getPagePayload(store, target.id)?.linkedRefs;
+    expect(groups?.map((g) => g.page.title)).toEqual([
+      '2026-07-04',
+      '2026-01-05',
+      'Projects',
+    ]);
+  });
+
   it('folds nested matches into the top-most matching block', () => {
     const page = setupPage('Home');
     applyOps(store, [
