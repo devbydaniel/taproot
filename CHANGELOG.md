@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.9.0...taproot-v0.10.0) (2026-07-12)
+
+
+### Features
+
+* tasks page with inbox, due, and planned sections ([3b9fc2a](https://github.com/devbydaniel/taproot/commit/3b9fc2a512fdfe82dd05716f8e54605d1e57e1af))
+
 ## [0.9.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.8.0...taproot-v0.9.0) (2026-07-12)
 
 
