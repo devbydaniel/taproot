@@ -1,10 +1,13 @@
 import {
   isDailyTitle,
+  taskDueDate,
+  taskHasPageLink,
   type Block,
   type JournalPayload,
   type LinkedRefGroup,
   type Page,
   type PagePayload,
+  type TasksPayload,
   type ZoomPayload,
 } from '@taproot/shared';
 import { and, asc, desc, eq, gte, inArray, lt, sql } from 'drizzle-orm';
@@ -179,6 +182,46 @@ export function getTaskGroups(store: Store): LinkedRefGroup[] {
     .all()
     .map((row) => row.block);
   return groupByPage(store, matching);
+}
+
+/**
+ * All open (TODO) tasks, flat, with due-date/page-link facts derived from
+ * block text. Date-dependent bucketing is the client's job — "today" is the
+ * client's today.
+ */
+export function getTaskList(store: Store): TasksPayload {
+  const open = store.db
+    .select({ block: blocks })
+    .from(tasks)
+    .innerJoin(blocks, eq(tasks.blockId, blocks.id))
+    .where(eq(tasks.state, 'TODO'))
+    .all()
+    .map((row) => row.block);
+  const pageIds = [...new Set(open.map((block) => block.pageId))];
+  const pageById = new Map(
+    pageIds.length === 0
+      ? []
+      : store.db
+          .select()
+          .from(pages)
+          .where(inArray(pages.id, pageIds))
+          .all()
+          .map((page) => [page.id, page] as const),
+  );
+  return {
+    tasks: open.flatMap((block) => {
+      const page = pageById.get(block.pageId);
+      if (!page) return [];
+      return [
+        {
+          block,
+          page,
+          dueDate: taskDueDate(block.text),
+          hasPageLink: taskHasPageLink(block.text),
+        },
+      ];
+    }),
+  };
 }
 
 /** SQLite GLOB for date-shaped titles; isDailyTitle stays the source of truth. */

@@ -6,6 +6,7 @@ import {
   getJournal,
   getPagePayload,
   getTaskGroups,
+  getTaskList,
   getZoomPayload,
   listPages,
 } from './queries.js';
@@ -368,6 +369,90 @@ describe('task index', () => {
 
     reindexTasks(store);
     expect(getTaskGroups(store)).toHaveLength(0);
+  });
+});
+
+describe('getTaskList', () => {
+  const block = (id: string, pageId: string, text: string): Op => ({
+    type: 'create_block',
+    id,
+    pageId,
+    parentId: null,
+    orderKey: id,
+    text,
+  });
+
+  const itemById = (id: string) =>
+    getTaskList(store).tasks.find((item) => item.block.id === id);
+
+  it('returns a bare task as undated with no page link', () => {
+    const home = setupPage('Home');
+    applyOps(store, [block('t1', home.id, 'TODO buy milk')]);
+
+    const item = itemById('t1');
+    expect(item?.dueDate).toBeNull();
+    expect(item?.hasPageLink).toBe(false);
+    expect(item?.page.title).toBe('Home');
+  });
+
+  it('treats a daily link as a date, not a page link', () => {
+    // the daily link auto-creates a page via ensurePage, but must still
+    // count as a date only
+    const home = setupPage('Home');
+    applyOps(store, [block('t1', home.id, 'TODO ship [[2026-07-10]]')]);
+
+    const item = itemById('t1');
+    expect(item?.dueDate).toBe('2026-07-10');
+    expect(item?.hasPageLink).toBe(false);
+  });
+
+  it('flags non-daily links, alone or alongside a date', () => {
+    const home = setupPage('Home');
+    applyOps(store, [
+      block('t1', home.id, 'TODO fix [[Project]]'),
+      block('t2', home.id, 'TODO ship [[Project]] [[2026-08-01]]'),
+    ]);
+
+    expect(itemById('t1')).toMatchObject({ dueDate: null, hasPageLink: true });
+    expect(itemById('t2')).toMatchObject({
+      dueDate: '2026-08-01',
+      hasPageLink: true,
+    });
+  });
+
+  it('derives the date from block text, not the page the task lives on', () => {
+    const day = setupPage('2026-07-10');
+    applyOps(store, [block('t1', day.id, 'TODO call dentist')]);
+
+    const item = itemById('t1');
+    expect(item?.dueDate).toBeNull();
+    expect(item?.page.title).toBe('2026-07-10');
+  });
+
+  it('lists nested open tasks as flat items and tracks text updates', () => {
+    const home = setupPage('Home');
+    applyOps(store, [
+      { ...block('outer', home.id, 'TODO plan trip') },
+      {
+        type: 'create_block',
+        id: 'inner',
+        pageId: home.id,
+        parentId: 'outer',
+        orderKey: 'a0',
+        text: 'TODO book hotel',
+      },
+    ]);
+    expect(
+      getTaskList(store)
+        .tasks.map((i) => i.block.id)
+        .sort(),
+    ).toEqual(['inner', 'outer']);
+
+    applyOps(store, [
+      { type: 'update_text', id: 'inner', text: 'DONE book hotel' },
+      { type: 'update_text', id: 'outer', text: 'plan trip' },
+    ]);
+    expect(getTaskList(store).tasks).toHaveLength(0);
   });
 });
 

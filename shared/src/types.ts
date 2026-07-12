@@ -42,6 +42,21 @@ export interface LinkedRefGroup {
   blocks: Block[];
 }
 
+/** One open task for the Tasks page; date/link facts are derived from block text. */
+export interface TaskListItem {
+  block: Block;
+  /** the page the block lives on */
+  page: Page;
+  /** first [[YYYY-MM-DD]] wikilink in the block text; null when undated */
+  dueDate: string | null;
+  /** text links to at least one non-daily page */
+  hasPageLink: boolean;
+}
+
+export interface TasksPayload {
+  tasks: TaskListItem[];
+}
+
 /** One day of the journal: a daily page plus its full flat block list. */
 export interface JournalDay {
   page: Page;

@@ -12,7 +12,7 @@ import { applyOps, ensurePage } from './ops.js';
 import {
   getJournal,
   getPagePayload,
-  getTaskGroups,
+  getTaskList,
   getZoomPayload,
   listPages,
 } from './queries.js';
@@ -30,7 +30,7 @@ export function createApi(
 ) {
   return new Hono()
     .get('/pages', (c) => c.json(listPages(store), 200))
-    .get('/tasks', (c) => c.json({ groups: getTaskGroups(store) }, 200))
+    .get('/tasks', (c) => c.json(getTaskList(store), 200))
     .get(
       '/journal',
       zValidator('query', journalQuerySchema, (result, c) => {

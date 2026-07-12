@@ -7,7 +7,7 @@ import {
   todayTitle,
   WEEKDAY_NAMES,
 } from './daily.js';
-import { findWikilinks } from './wikilinks.js';
+import { firstDailyLink } from './tasks.js';
 
 export type RecurrenceRule =
   | { unit: 'days'; n: number }
@@ -159,7 +159,7 @@ export function advanceRecurringTask(
 ): string | null {
   const recurrence = findRecurrence(text);
   if (!recurrence) return null;
-  const link = findWikilinks(text).find((l) => isDailyTitle(l.title));
+  const link = firstDailyLink(text);
   if (!link) {
     const next = nextOccurrence(recurrence.rule, todayTitle(now), now);
     return `${text} [[${next}]]`;
