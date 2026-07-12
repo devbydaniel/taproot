@@ -1,4 +1,4 @@
-import { segmentText } from '@taproot/shared';
+import { dailyDisplayLabel, segmentText } from '@taproot/shared';
 import { useLocation } from 'wouter';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -61,22 +61,26 @@ export function StaticText({
 
   return (
     <span className={className}>
-      {segmentText(text).map((segment, index) =>
-        segment.type === 'text' ? (
-          <span key={index}>{segment.value}</span>
-        ) : segment.type === 'url' ? (
-          <UrlLink key={index} url={segment.url} />
-        ) : (
+      {segmentText(text).map((segment, index) => {
+        if (segment.type === 'text')
+          return <span key={index}>{segment.value}</span>;
+        if (segment.type === 'url')
+          return <UrlLink key={index} url={segment.url} />;
+        // daily links display as Today/Tomorrow/"Wed, Jul 15"; the stored
+        // text keeps the ISO title, hover reveals it
+        const daily = dailyDisplayLabel(segment.title);
+        return (
           <a
             key={index}
             href={`/p/${encodeURIComponent(segment.title)}`}
             onClick={(event) => void openPage(event, segment.title)}
+            title={daily ? segment.title : undefined}
             className="cursor-pointer text-link hover:underline"
           >
-            {segment.title}
+            {daily ?? segment.title}
           </a>
-        ),
-      )}
+        );
+      })}
     </span>
   );
 }

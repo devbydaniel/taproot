@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  dailyDisplayLabel,
   dailyLabel,
   formatDailyTitle,
   isDailyTitle,
@@ -59,6 +60,25 @@ describe('shiftDailyTitle', () => {
   it('returns null for non-daily titles', () => {
     expect(shiftDailyTitle('Welcome', 1)).toBeNull();
     expect(shiftDailyTitle('2026-02-30', 1)).toBeNull();
+  });
+});
+
+describe('dailyDisplayLabel', () => {
+  const now = new Date(2026, 6, 4); // Saturday, July 4, 2026
+
+  it('uses relative words for the adjacent days', () => {
+    expect(dailyDisplayLabel('2026-07-04', now)).toBe('Today');
+    expect(dailyDisplayLabel('2026-07-05', now)).toBe('Tomorrow');
+    expect(dailyDisplayLabel('2026-07-03', now)).toBe('Yesterday');
+  });
+
+  it('renders a short label, with the year only when it differs', () => {
+    expect(dailyDisplayLabel('2026-07-15', now)).toBe('Wed, Jul 15');
+    expect(dailyDisplayLabel('2027-01-03', now)).toBe('Sun, Jan 3, 2027');
+  });
+
+  it('returns null for non-daily titles', () => {
+    expect(dailyDisplayLabel('Welcome', now)).toBeNull();
   });
 });
 

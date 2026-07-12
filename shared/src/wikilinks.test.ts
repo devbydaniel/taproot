@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extractWikilinks, segmentText } from './wikilinks.js';
+import { extractWikilinks, findWikilinks, segmentText } from './wikilinks.js';
 
 describe('extractWikilinks', () => {
   it('extracts unique trimmed titles', () => {
@@ -16,6 +16,19 @@ describe('extractWikilinks', () => {
 
   it('returns empty for plain text', () => {
     expect(extractWikilinks('no links here')).toEqual([]);
+  });
+});
+
+describe('findWikilinks', () => {
+  it('returns titles with their document spans', () => {
+    expect(findWikilinks('a [[B]] and [[ C ]]')).toEqual([
+      { title: 'B', from: 2, to: 7 },
+      { title: 'C', from: 12, to: 19 },
+    ]);
+  });
+
+  it('returns empty for plain text', () => {
+    expect(findWikilinks('no links')).toEqual([]);
   });
 });
 

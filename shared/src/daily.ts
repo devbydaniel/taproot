@@ -37,6 +37,29 @@ export function shiftDailyTitle(title: string, days: number): string | null {
   return formatDailyTitle(date);
 }
 
+/**
+ * Compact display form for inline daily links: "Today"/"Tomorrow"/"Yesterday"
+ * relative to `now`, else e.g. "Wed, Jul 15" (year appended only when it
+ * differs from the current year). Null for non-daily titles.
+ */
+export function dailyDisplayLabel(
+  title: string,
+  now: Date = new Date(),
+): string | null {
+  const date = parseDailyTitle(title);
+  if (!date) return null;
+  const today = todayTitle(now);
+  if (title === today) return 'Today';
+  if (title === shiftDailyTitle(today, 1)) return 'Tomorrow';
+  if (title === shiftDailyTitle(today, -1)) return 'Yesterday';
+  return date.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    ...(date.getFullYear() !== now.getFullYear() && { year: 'numeric' }),
+  });
+}
+
 /** Human-friendly form, e.g. "Saturday, July 4, 2026", or null for non-daily titles. */
 export function dailyLabel(title: string): string | null {
   const date = parseDailyTitle(title);

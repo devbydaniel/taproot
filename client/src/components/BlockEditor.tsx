@@ -8,7 +8,12 @@ import {
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { EditorState, Prec } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
-import { cycleTaskState } from '@taproot/shared';
+import {
+  cycleTaskState,
+  findWikilinks,
+  shiftDailyTitle,
+  suggestDailyTitles,
+} from '@taproot/shared';
 import { useEffect, useRef } from 'react';
 import * as actions from '@/actions';
 import type { OutlineCtx } from '@/lib/outline';
@@ -28,14 +33,27 @@ function wikiCompletionSource(
 ): CompletionResult | null {
   const match = context.matchBefore(/\[\[[^[\]]*$/);
   if (!match) return null;
-  const query = context.state
-    .sliceDoc(match.from + 2, context.pos)
-    .toLowerCase();
+  const raw = context.state.sliceDoc(match.from + 2, context.pos);
+  const query = raw.toLowerCase();
+  // natural-language dates ("tomorrow", "next wed", "in 3 days") resolve to
+  // daily-page links; they rank above title matches and shadow duplicates
+  const dateOptions = suggestDailyTitles(raw).map((s) => ({
+    label: s.title,
+    detail: s.label,
+    apply: `${s.title}]]`,
+  }));
+  const dateTitles = new Set(dateOptions.map((o) => o.label));
   const titles = useStore.getState().pages.map((p) => p.title);
-  const options = titles
-    .filter((title) => title.toLowerCase().includes(query))
-    .slice(0, 12)
-    .map((title) => ({ label: title, apply: `${title}]]` }));
+  const options = [
+    ...dateOptions,
+    ...titles
+      .filter(
+        (title) =>
+          title.toLowerCase().includes(query) && !dateTitles.has(title),
+      )
+      .slice(0, 12)
+      .map((title) => ({ label: title, apply: `${title}]]` })),
+  ];
   if (options.length === 0) return null;
   return { from: match.from + 2, options, filter: false };
 }
@@ -106,6 +124,26 @@ export function BlockEditor({
       );
     };
 
+    // Alt-↑/↓ on a [[YYYY-MM-DD]] link reschedules it by a day; the
+    // updateListener turns the edit into a normal update_text op
+    const shiftDateAtCursor = (view: EditorView, days: number): boolean => {
+      if (completionStatus(view.state) === 'active') return false;
+      const head = view.state.selection.main.head;
+      for (const link of findWikilinks(view.state.doc.toString())) {
+        if (head < link.from || head > link.to) continue;
+        const shifted = shiftDailyTitle(link.title, days);
+        if (!shifted) return false;
+        view.dispatch({
+          changes: { from: link.from + 2, to: link.to - 2, insert: shifted },
+          selection: {
+            anchor: Math.min(head, link.from + 2 + shifted.length + 2),
+          },
+        });
+        return true;
+      }
+      return false;
+    };
+
     const editKeymap = Prec.highest(
       keymap.of([
         {
@@ -159,6 +197,14 @@ export function BlockEditor({
               return false;
             return actions.deleteEmptyBlock(blockId, ctx);
           },
+        },
+        {
+          key: 'Alt-ArrowUp',
+          run: (view) => shiftDateAtCursor(view, 1),
+        },
+        {
+          key: 'Alt-ArrowDown',
+          run: (view) => shiftDateAtCursor(view, -1),
         },
         {
           key: 'ArrowUp',

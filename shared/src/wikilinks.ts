@@ -10,6 +10,17 @@ export function extractWikilinks(text: string): string[] {
   return [...titles];
 }
 
+/** All [[...]] spans with document positions, for editor features that rewrite links in place. */
+export function findWikilinks(
+  text: string,
+): { title: string; from: number; to: number }[] {
+  return [...text.matchAll(WIKILINK)].map((match) => ({
+    title: match[1]!.trim(),
+    from: match.index,
+    to: match.index + match[0].length,
+  }));
+}
+
 const URL_RE = /https?:\/\/\S+/g;
 const TRAILING_PUNCT = /[.,;:!?"')\]]+$/;
 
