@@ -36,7 +36,7 @@ function blocksByPageMap(list: Block[]): Map<string, Block[]> {
 }
 
 /** parentId (or null for top level) -> children sorted by orderKey */
-function childrenMap(list: Block[]): Map<string | null, Block[]> {
+export function childrenMap(list: Block[]): Map<string | null, Block[]> {
   const map = new Map<string | null, Block[]>();
   for (const block of list) {
     const siblings = map.get(block.parentId) ?? [];
@@ -46,7 +46,7 @@ function childrenMap(list: Block[]): Map<string | null, Block[]> {
   return map;
 }
 
-function collectSubtree(
+export function collectSubtree(
   map: Map<string | null, Block[]>,
   root: Block,
 ): Block[] {
@@ -151,11 +151,14 @@ function buildGroups(
   });
 }
 
-function groupByPage(store: Store, matching: Block[]): LinkedRefGroup[] {
+export function groupByPage(store: Store, matching: Block[]): LinkedRefGroup[] {
   return buildGroups(matching, fetchSourceData(store, matching));
 }
 
-function linkedRefGroups(store: Store, pageId: string): LinkedRefGroup[] {
+export function linkedRefGroups(
+  store: Store,
+  pageId: string,
+): LinkedRefGroup[] {
   const matching = store.db
     .select({ block: blocks })
     .from(refs)

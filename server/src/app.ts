@@ -6,6 +6,7 @@ import {
 } from '@taproot/shared';
 import { Hono } from 'hono';
 import { z } from 'zod';
+import { createAgentApi } from './agentApi.js';
 import type { Store } from './db.js';
 import { applyOps, ensurePage } from './ops.js';
 import {
@@ -78,7 +79,8 @@ export function createApi(
         broadcast({ type: 'ops', clientId, ops });
         return c.json({ ok: true }, 200);
       },
-    );
+    )
+    .route('/agent', createAgentApi(store, broadcast));
 }
 
 export type ApiType = ReturnType<typeof createApi>;
