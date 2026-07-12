@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.7.1...taproot-v0.8.0) (2026-07-12)
+
+
+### Features
+
+* order linked reference groups with newest daily notes first ([90c728f](https://github.com/devbydaniel/taproot/commit/90c728f0a7d85f5af809fde4c04635feecb35a2f))
+* recurring tasks via &lt;every ...&gt; rules ([25eed85](https://github.com/devbydaniel/taproot/commit/25eed85b40c79efb1daaf946224f87ef4131c4db))
+* schedule bullets onto daily pages with natural-language dates ([f5ddd2b](https://github.com/devbydaniel/taproot/commit/f5ddd2ba9a069fce5f39aea92e16053303065909))
+
 ## [0.7.1](https://github.com/devbydaniel/taproot/compare/taproot-v0.7.0...taproot-v0.7.1) (2026-07-10)
 
 
