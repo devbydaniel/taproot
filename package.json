@@ -1,7 +1,7 @@
 {
   "name": "taproot",
   "private": true,
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Self-hosted fractal outliner with wiki-links and linked references",
   "type": "module",
   "workspaces": [
