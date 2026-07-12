@@ -14,8 +14,23 @@ export function todayTitle(now: Date = new Date()): string {
   return formatDailyTitle(now);
 }
 
+export const WEEKDAY_NAMES = [
+  'sunday',
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+];
+
+/** Days until the soonest strictly-future occurrence of a weekday (1..7). */
+export function daysUntilWeekday(weekday: number, from: Date): number {
+  return ((weekday - from.getDay() + 6) % 7) + 1;
+}
+
 /** Local-time Date for a daily title, or null if it isn't a real calendar date. */
-function parseDailyTitle(title: string): Date | null {
+export function parseDailyTitle(title: string): Date | null {
   if (!DAILY_TITLE_RE.test(title)) return null;
   const [year, month, day] = title.split('-').map(Number);
   const date = new Date(year!, month! - 1, day);

@@ -1,8 +1,10 @@
 import {
   dailyLabel,
+  daysUntilWeekday,
   formatDailyTitle,
   isDailyTitle,
   todayTitle,
+  WEEKDAY_NAMES,
 } from './daily.js';
 
 export interface DateSuggestion {
@@ -11,16 +13,6 @@ export interface DateSuggestion {
   /** Human-readable resolution, e.g. "Wednesday, July 15, 2026". */
   label: string;
 }
-
-const WEEKDAYS = [
-  'sunday',
-  'monday',
-  'tuesday',
-  'wednesday',
-  'thursday',
-  'friday',
-  'saturday',
-];
 
 const MONTHS = [
   'january',
@@ -63,11 +55,6 @@ function nextMonthDay(month: number, day: number, now: Date): Date | null {
   return null;
 }
 
-/** Days until the soonest strictly-future occurrence of a weekday (1..7). */
-function daysUntilWeekday(weekday: number, now: Date): number {
-  return ((weekday - now.getDay() + 6) % 7) + 1;
-}
-
 /** today / tomorrow / yesterday / next week, matched on prefixes of ≥2 chars so a lone "t" doesn't flood the popup. */
 function matchKeywords(q: string, now: Date): Date[] {
   if (q.length < 2) return [];
@@ -86,7 +73,7 @@ function matchWeekday(q: string, now: Date): Date[] {
   const match = q.match(/^(next )?([a-z]{2,9})$/);
   if (!match) return [];
   const dates: Date[] = [];
-  for (const [index, name] of WEEKDAYS.entries()) {
+  for (const [index, name] of WEEKDAY_NAMES.entries()) {
     if (!name.startsWith(match[2]!)) continue;
     const ahead = daysUntilWeekday(index, now);
     dates.push(addDays(now, match[1] ? ahead + 7 : ahead));

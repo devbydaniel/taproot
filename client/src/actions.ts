@@ -1,5 +1,10 @@
 import { arrayMove } from '@dnd-kit/sortable';
-import { parseTask, withTaskState, type Op } from '@taproot/shared';
+import {
+  advanceRecurringTask,
+  parseTask,
+  withTaskState,
+  type Op,
+} from '@taproot/shared';
 import { generateKeyBetween } from 'fractional-indexing';
 import { nanoid } from 'nanoid';
 import { api } from '@/lib/api';
@@ -45,19 +50,40 @@ export function flushText() {
   void api.postOps(ops);
 }
 
-/** Checkbox click: flip TODO ↔ DONE (only defined for blocks that are tasks). */
+/**
+ * Checkbox click: flip TODO ↔ DONE (only defined for blocks that are tasks).
+ * Completing a recurring task (<every ...>) also spawns the next instance as
+ * the following sibling, its date link advanced. Only the checkbox recurs —
+ * Mod-Enter cycling stays a plain text edit, so accidental cycles don't
+ * multiply tasks. Un-toggling DONE does not retract a spawned instance.
+ */
 export function toggleTaskCheckbox(blockId: string) {
   const { blocks } = useStore.getState();
   const block = blocks[blockId];
   if (!block) return;
   const parsed = parseTask(block.text);
   if (!parsed) return;
-  const text = withTaskState(
-    block.text,
-    parsed.state === 'TODO' ? 'DONE' : 'TODO',
-  );
+  const completing = parsed.state === 'TODO';
+  const text = withTaskState(block.text, completing ? 'DONE' : 'TODO');
   flushText();
-  dispatch([{ type: 'update_text', id: blockId, text }]);
+  const ops: Op[] = [{ type: 'update_text', id: blockId, text }];
+  const nextText = completing ? advanceRecurringTask(block.text) : null;
+  if (nextText !== null) {
+    const siblings = siblingsOf(blocks, block);
+    const index = siblings.findIndex((b) => b.id === blockId);
+    ops.push({
+      type: 'create_block',
+      id: nanoid(),
+      pageId: block.pageId,
+      parentId: block.parentId,
+      orderKey: generateKeyBetween(
+        block.orderKey,
+        siblings[index + 1]?.orderKey ?? null,
+      ),
+      text: nextText,
+    });
+  }
+  dispatch(ops);
 }
 
 /** Pin appends at the end of the pinned list; unpin clears the key. */
