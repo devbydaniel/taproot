@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.8.0...taproot-v0.9.0) (2026-07-12)
+
+
+### Features
+
+* agent-facing HTTP API under /api/agent with OpenAPI schema ([7d6168a](https://github.com/devbydaniel/taproot/commit/7d6168ab1249c756e64460becad2e68fda46cc83))
+
 ## [0.8.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.7.1...taproot-v0.8.0) (2026-07-12)
 
 
