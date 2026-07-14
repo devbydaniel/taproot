@@ -1,30 +1,14 @@
-import { segmentText, type Block, type ZoomPayload } from '@taproot/shared';
-import { ChevronRight } from 'lucide-react';
-import { Fragment, useEffect, useState } from 'react';
-import { Link } from 'wouter';
+import type { ZoomPayload } from '@taproot/shared';
+import { useEffect, useState } from 'react';
 import * as actions from '@/actions';
 import { BlockEditor } from '@/components/BlockEditor';
+import { Breadcrumb } from '@/components/Breadcrumb';
 import { DrawingBlock } from '@/components/drawing/DrawingBlock';
 import { OutlineTree } from '@/components/OutlineTree';
 import { StaticText } from '@/components/StaticText';
 import { api } from '@/lib/api';
 import { hasChildren, visibleOrder, type OutlineCtx } from '@/lib/outline';
 import { useStore } from '@/store';
-
-function renderedPreview(block: Block, max = 40): string {
-  if (block.kind === 'drawing') return 'Drawing';
-  const rendered = segmentText(block.text)
-    .map((segment) =>
-      segment.type === 'text'
-        ? segment.value
-        : segment.type === 'url'
-          ? segment.url
-          : segment.title,
-    )
-    .join('');
-  if (rendered.trim() === '') return 'Untitled';
-  return rendered.length > max ? `${rendered.slice(0, max)}…` : rendered;
-}
 
 export function ZoomView({ id }: { id: string }) {
   const [payload, setPayload] = useState<ZoomPayload | null>(null);
@@ -75,25 +59,11 @@ export function ZoomView({ id }: { id: string }) {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 md:px-8 md:py-10">
-      <nav className="mb-4 flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
-        <Link
-          href={`/p/${payload.page.id}`}
-          className="hover:text-foreground hover:underline"
-        >
-          {payload.page.title}
-        </Link>
-        {payload.ancestors.map((ancestor) => (
-          <Fragment key={ancestor.id}>
-            <ChevronRight className="h-3.5 w-3.5" />
-            <Link
-              href={`/b/${ancestor.id}`}
-              className="hover:text-foreground hover:underline"
-            >
-              {renderedPreview(ancestor)}
-            </Link>
-          </Fragment>
-        ))}
-      </nav>
+      <Breadcrumb
+        page={payload.page}
+        ancestors={payload.ancestors}
+        className="mb-4"
+      />
 
       <div className="mb-6">
         {(liveBlock ?? payload.block).kind === 'drawing' ? (

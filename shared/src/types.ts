@@ -38,6 +38,8 @@ export interface LinkedRefGroup {
   page: Page;
   /** Top-most matching blocks (matches nested under another match are folded into its subtree). */
   rootIds: string[];
+  /** ancestor chain per root id, outermost first, excluding the root; [] for top-level roots */
+  ancestors: Record<string, Block[]>;
   /** The root blocks plus all their descendants, flat; client builds the tree. */
   blocks: Block[];
 }

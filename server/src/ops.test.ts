@@ -112,6 +112,53 @@ describe('applyOps', () => {
     ]);
   });
 
+  it('includes each root ancestor chain in linked refs, outermost first', () => {
+    const page = setupPage('Home');
+    applyOps(store, [
+      {
+        type: 'create_block',
+        id: 'top',
+        pageId: page.id,
+        parentId: null,
+        orderKey: 'a0',
+        text: 'top level',
+      },
+      {
+        type: 'create_block',
+        id: 'mid',
+        pageId: page.id,
+        parentId: 'top',
+        orderKey: 'a0',
+        text: 'middle',
+      },
+      {
+        type: 'create_block',
+        id: 'nested-ref',
+        pageId: page.id,
+        parentId: 'mid',
+        orderKey: 'a0',
+        text: 'mentions [[Target]]',
+      },
+      {
+        type: 'create_block',
+        id: 'top-ref',
+        pageId: page.id,
+        parentId: null,
+        orderKey: 'a1',
+        text: 'also [[Target]]',
+      },
+    ]);
+
+    const target = ensurePage(store, 'Target');
+    const refGroup = getPagePayload(store, target.id)?.linkedRefs[0];
+    expect(refGroup?.rootIds).toEqual(['nested-ref', 'top-ref']);
+    expect(refGroup?.ancestors['nested-ref']?.map((b) => b.id)).toEqual([
+      'top',
+      'mid',
+    ]);
+    expect(refGroup?.ancestors['top-ref']).toEqual([]);
+  });
+
   it('orders linked ref groups with newer daily notes first', () => {
     const older = setupPage('2026-01-05');
     const newer = setupPage('2026-07-04');

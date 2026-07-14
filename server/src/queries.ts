@@ -96,6 +96,19 @@ function fetchSourceData(store: Store, matching: Block[]): SourceData {
   };
 }
 
+/** Ancestor chain of `block`, outermost first, excluding the block itself. */
+function ancestorChain(byId: Map<string, Block>, block: Block): Block[] {
+  const chain: Block[] = [];
+  let parentId = block.parentId;
+  while (parentId) {
+    const parent = byId.get(parentId);
+    if (!parent) break;
+    chain.unshift(parent);
+    parentId = parent.parentId;
+  }
+  return chain;
+}
+
 /** Group matching blocks by their page, each root carrying its full subtree. */
 function buildGroups(
   matching: Block[],
@@ -132,6 +145,7 @@ function buildGroups(
 
     const seen = new Set<string>();
     const groupBlocks: Block[] = [];
+    const ancestors: Record<string, Block[]> = {};
     for (const root of roots) {
       for (const block of collectSubtree(map, root)) {
         if (!seen.has(block.id)) {
@@ -139,8 +153,14 @@ function buildGroups(
           groupBlocks.push(block);
         }
       }
+      ancestors[root.id] = ancestorChain(byId, root);
     }
-    groups.push({ page, rootIds: roots.map((b) => b.id), blocks: groupBlocks });
+    groups.push({
+      page,
+      rootIds: roots.map((b) => b.id),
+      ancestors,
+      blocks: groupBlocks,
+    });
   }
   // daily pages first, newest to oldest (ISO titles sort chronologically as
   // strings); named pages after, alphabetical
@@ -346,18 +366,9 @@ export function getZoomPayload(
   const pageBlocks = getPageBlocks(store, block.pageId);
   const byId = new Map(pageBlocks.map((b) => [b.id, b]));
 
-  const ancestors: Block[] = [];
-  let parentId = block.parentId;
-  while (parentId) {
-    const parent = byId.get(parentId);
-    if (!parent) break;
-    ancestors.unshift(parent);
-    parentId = parent.parentId;
-  }
-
   return {
     page,
-    ancestors,
+    ancestors: ancestorChain(byId, block),
     block,
     blocks: collectSubtree(childrenMap(pageBlocks), block),
   };

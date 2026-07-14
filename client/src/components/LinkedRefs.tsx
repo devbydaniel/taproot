@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { Link } from 'wouter';
 import { useStore } from '@/store';
 import { BlockContent } from './BlockContent';
+import { Breadcrumb } from './Breadcrumb';
 
 export function LinkedRefs({ groups }: { groups: LinkedRefGroup[] }) {
   const count = groups.reduce((sum, group) => sum + group.rootIds.length, 0);
@@ -48,14 +49,15 @@ export function RefGroupCard({ group }: { group: LinkedRefGroup }) {
 
   return (
     <div className="mb-6 rounded-lg border bg-muted/30 px-4 py-3">
-      <Link
-        href={`/p/${group.page.id}`}
-        className="mb-1 inline-block text-sm font-medium text-link hover:underline"
-      >
-        {group.page.title}
-      </Link>
-      {roots.map((root) => (
-        <RefRow key={root.id} block={root} byParent={byParent} />
+      {roots.map((root, i) => (
+        <div key={root.id} className={i > 0 ? 'mt-4' : undefined}>
+          <Breadcrumb
+            page={group.page}
+            ancestors={group.ancestors[root.id] ?? []}
+            className="mb-1 font-medium"
+          />
+          <RefRow block={root} byParent={byParent} />
+        </div>
       ))}
     </div>
   );
