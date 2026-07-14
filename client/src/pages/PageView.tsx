@@ -107,7 +107,6 @@ export function PageView({ id }: { id: string }) {
         </button>
       </div>
       {isDaily && <DailyNav title={payload.page.title} />}
-      <PageTasks groups={payload.linkedRefs} />
       {hasBlocks ? (
         <OutlineTree parentId={null} ctx={ctx} />
       ) : (
@@ -119,6 +118,7 @@ export function PageView({ id }: { id: string }) {
         </button>
       )}
       <div className="h-24 cursor-text" onClick={clickBelow} />
+      <PageTasks groups={payload.linkedRefs} />
       <LinkedRefs groups={payload.linkedRefs} />
     </div>
   );

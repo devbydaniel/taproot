@@ -4,8 +4,8 @@ import { useStore } from '@/store';
 import { BlockContent } from './BlockContent';
 
 /**
- * Open tasks that link to this page, shown under the heading. Membership is
- * "was open at any point while this view was mounted": checking a task
+ * Open tasks that link to this page, shown below the page content. Membership
+ * is "was open at any point while this view was mounted": checking a task
  * strikes it through but keeps the row until the page is left or reloaded.
  */
 export function PageTasks({ groups }: { groups: LinkedRefGroup[] }) {
@@ -33,7 +33,7 @@ export function PageTasks({ groups }: { groups: LinkedRefGroup[] }) {
   ).length;
 
   return (
-    <section className="mb-6 border-b pb-6">
+    <section className="mt-16 border-t pt-6">
       <h2 className="mb-1 text-sm font-semibold tracking-wide text-muted-foreground uppercase">
         Tasks
         {openCount > 0 && <span className="ml-2 font-normal">{openCount}</span>}
