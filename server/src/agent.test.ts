@@ -170,6 +170,37 @@ describe('agentGetPage', () => {
     });
     expect(listPages(store).map((p) => p.title)).toContain('Brand New');
   });
+
+  it('since time-scopes the linkedRefs but not the page own blocks', () => {
+    ok(agentAppend(store, { page: 'Topic', blocks: [{ text: 'own note' }] }));
+    ok(
+      agentAppend(store, {
+        date: '2026-07-10',
+        blocks: [{ text: 'early [[Topic]]' }],
+      }),
+    );
+    ok(
+      agentAppend(store, {
+        date: '2026-07-14',
+        blocks: [{ text: 'late [[Topic]]' }],
+      }),
+    );
+    ok(
+      agentAppend(store, {
+        page: 'Named',
+        blocks: [{ text: 'named [[Topic]]' }],
+      }),
+    );
+
+    const scoped = ok(agentGetPage(store, { title: 'Topic' }, '2026-07-12'));
+    // own blocks are untouched by since
+    expect(texts(scoped.result.blocks)).toEqual(['own note']);
+    // the pre-since daily group drops; later daily and named pages stay
+    expect(scoped.result.linkedRefs.map((g) => g.pageTitle)).toEqual([
+      '2026-07-14',
+      'Named',
+    ]);
+  });
 });
 
 describe('agentSetTaskState', () => {
@@ -368,6 +399,56 @@ describe('agentPageRefs', () => {
     expect(missing.groups).toEqual([]);
     expect(listPages(store).map((p) => p.title)).not.toContain('Nowhere');
   });
+
+  it('since drops dated groups before it, keeping later dates and named pages', () => {
+    ok(
+      agentAppend(store, {
+        date: '2026-07-10',
+        blocks: [{ text: 'early [[T]]' }],
+      }),
+    );
+    ok(
+      agentAppend(store, {
+        date: '2026-07-12',
+        blocks: [{ text: 'on-day [[T]]' }],
+      }),
+    );
+    ok(
+      agentAppend(store, {
+        date: '2026-07-14',
+        blocks: [{ text: 'late [[T]]' }],
+      }),
+    );
+    ok(
+      agentAppend(store, {
+        page: 'Project',
+        blocks: [{ text: 'named [[T]]' }],
+      }),
+    );
+
+    const filtered = ok(agentPageRefs(store, { title: 'T' }, '2026-07-12'));
+    // since is inclusive: the boundary day stays; only strictly-earlier days drop
+    expect(filtered.groups.map((g) => g.pageTitle)).toEqual([
+      '2026-07-14',
+      '2026-07-12',
+      'Project',
+    ]);
+
+    // without since every group is returned (dailies newest-first, then named)
+    const all = ok(agentPageRefs(store, { title: 'T' }));
+    expect(all.groups.map((g) => g.pageTitle)).toEqual([
+      '2026-07-14',
+      '2026-07-12',
+      '2026-07-10',
+      'Project',
+    ]);
+  });
+
+  it('since leaves a page with only non-daily refs untouched', () => {
+    ok(agentAppend(store, { page: 'Source', blocks: [{ text: 'see [[T]]' }] }));
+    const out = ok(agentPageRefs(store, { title: 'T' }, '2026-07-12'));
+    expect(out.groups.map((g) => g.pageTitle)).toEqual(['Source']);
+  });
 });
 
 describe('agentPageTasks', () => {
@@ -465,6 +546,14 @@ describe('routes', () => {
     expect(missing.status).toBe(404);
     const missingBody = (await missing.json()) as { error: string };
     expect(missingBody.error).toContain('nope');
+
+    const badSince = await api.request(
+      '/agent/page/refs?title=T&since=2026-7-1',
+    );
+    expect(badSince.status).toBe(400);
+    const badSinceBody = (await badSince.json()) as { error: string };
+    expect(badSinceBody.error).toContain('since');
+    expect(badSinceBody.error).toContain('YYYY-MM-DD');
   });
 
   it('does not broadcast pure reads', async () => {

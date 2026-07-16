@@ -1,4 +1,5 @@
 import {
+  isDailyTitle,
   suggestDailyTitles,
   todayTitle,
   type Block,
@@ -76,6 +77,23 @@ const toRefGroups = (groups: LinkedRefGroup[]): AgentRefGroup[] =>
     pageTitle: group.page.title,
     blocks: toTrees(group.blocks, group.rootIds),
   }));
+
+/**
+ * Time-scope a page's linked references to its timeline from `since` on:
+ * drop date-titled source groups older than the YYYY-MM-DD `since` (inclusive
+ * — the boundary day stays), while non-date-titled groups (which aren't part
+ * of the timeline) always pass through. ISO date titles sort chronologically
+ * as strings, so a lexicographic compare is the date compare.
+ */
+const refGroupsSince = (
+  groups: LinkedRefGroup[],
+  since: string | undefined,
+): LinkedRefGroup[] =>
+  since === undefined
+    ? groups
+    : groups.filter(
+        (group) => !isDailyTitle(group.page.title) || group.page.title >= since,
+      );
 
 /** Resolve a {title | date} target to an exact page title (no page lookup). */
 export function resolveTargetTitle(
@@ -257,10 +275,15 @@ function fetchSearchContext(store: Store, window: Block[]) {
   return { titleById, blockById };
 }
 
-/** Get-or-create: reading a page by title/date brings it into existence. */
+/**
+ * Get-or-create: reading a page by title/date brings it into existence.
+ * `since` time-scopes the linkedRefs only (see refGroupsSince); the page's own
+ * blocks are always returned in full.
+ */
 export function agentGetPage(
   store: Store,
   target: PageTarget,
+  since?: string,
   now: Date = new Date(),
 ): AgentWrite<AgentPagePayload> | AgentFailure<400> {
   const title = resolveTargetTitle(target, now);
@@ -283,7 +306,9 @@ export function agentGetPage(
     result: {
       page: pageRef(page),
       blocks: toTrees(pageBlocks),
-      linkedRefs: toRefGroups(linkedRefGroups(store, page.id)),
+      linkedRefs: toRefGroups(
+        refGroupsSince(linkedRefGroups(store, page.id), since),
+      ),
     },
   };
 }
@@ -310,10 +335,14 @@ export function agentTasks(store: Store): { groups: AgentTaskGroup[] } {
   };
 }
 
-/** Linked references of a page. Read-only: a miss does not create the page. */
+/**
+ * Linked references of a page. Read-only: a miss does not create the page.
+ * `since` (a YYYY-MM-DD title) time-scopes the groups — see refGroupsSince.
+ */
 export function agentPageRefs(
   store: Store,
   target: PageTarget,
+  since?: string,
   now: Date = new Date(),
 ): AgentPageRefsPayload | AgentFailure<400> {
   const title = resolveTargetTitle(target, now);
@@ -322,7 +351,7 @@ export function agentPageRefs(
   if (!page) return { page: null, groups: [] };
   return {
     page: pageRef(page),
-    groups: toRefGroups(linkedRefGroups(store, page.id)),
+    groups: toRefGroups(refGroupsSince(linkedRefGroups(store, page.id), since)),
   };
 }
 

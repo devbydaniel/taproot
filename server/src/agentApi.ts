@@ -104,6 +104,22 @@ const journalQuerySchema = z.object({
     .describe('Days to return, 1-100 (default 5)'),
 });
 
+// Time-scopes a page's linked references to its journal timeline; non-daily
+// source pages (not part of the timeline) are always included. Shared by the
+// two reads that return linked references.
+const sinceParam = z
+  .string()
+  .refine(isDailyTitle, 'must be an ISO date (YYYY-MM-DD)')
+  .optional()
+  .describe(
+    'Only linked references from daily pages on or after this YYYY-MM-DD ' +
+      'date; references from non-daily pages are always included',
+  );
+
+const pageQuerySchema = pageTargetSchema.extend({ since: sinceParam });
+
+const pageRefsQuerySchema = pageTargetSchema.extend({ since: sinceParam });
+
 const pageTasksQuerySchema = pageTargetSchema.extend({
   state: z
     .enum(['TODO', 'DONE', 'all'])
@@ -138,7 +154,7 @@ const routes = {
     path: '/page',
     operationId: 'getPage',
     summary: 'Read a page by title or date (created if missing)',
-    request: { query: pageTargetSchema },
+    request: { query: pageQuerySchema },
     responses: {
       200: jsonResponse(
         agentPagePayloadSchema,
@@ -152,7 +168,7 @@ const routes = {
     path: '/page/refs',
     operationId: 'getPageRefs',
     summary: 'Linked references of a page (read-only, never creates)',
-    request: { query: pageTargetSchema },
+    request: { query: pageRefsQuerySchema },
     responses: {
       200: jsonResponse(
         agentPageRefsPayloadSchema,
@@ -325,13 +341,15 @@ export function createAgentApi(
       );
     })
     .openapi(routes.getPage, (c) => {
-      const out = agentGetPage(store, c.req.valid('query'));
+      const { since, ...target } = c.req.valid('query');
+      const out = agentGetPage(store, target, since);
       if (isFailure(out)) return c.json({ error: out.error }, out.status);
       emit(out.ops);
       return c.json(out.result, 200);
     })
     .openapi(routes.pageRefs, (c) => {
-      const out = agentPageRefs(store, c.req.valid('query'));
+      const { since, ...target } = c.req.valid('query');
+      const out = agentPageRefs(store, target, since);
       if (isFailure(out)) return c.json({ error: out.error }, out.status);
       return c.json(out, 200);
     })
