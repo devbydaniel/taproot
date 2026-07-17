@@ -7,6 +7,7 @@ import { DrawingBlock } from '@/components/drawing/DrawingBlock';
 import { OutlineTree } from '@/components/OutlineTree';
 import { StaticText } from '@/components/StaticText';
 import { api } from '@/lib/api';
+import { installMergedBlocks } from '@/lib/offline/sync';
 import { hasChildren, visibleOrder, type OutlineCtx } from '@/lib/outline';
 import { useStore } from '@/store';
 
@@ -27,7 +28,7 @@ export function ZoomView({ id }: { id: string }) {
       .getBlock(id)
       .then((data) => {
         if (cancelled) return;
-        useStore.getState().mergeBlocks(data.blocks);
+        installMergedBlocks(data.blocks);
         setPayload(data);
       })
       .catch(() => setNotFound(true));

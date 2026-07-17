@@ -1,4 +1,5 @@
 {
+  "id": "/",
   "name": "Taproot",
   "short_name": "Taproot",
   "description": "Self-hosted fractal outliner",

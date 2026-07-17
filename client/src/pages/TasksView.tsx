@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'wouter';
 import { BlockContent } from '@/components/BlockContent';
 import { api } from '@/lib/api';
+import { installMergedBlocks } from '@/lib/offline/sync';
 import { useStore } from '@/store';
 
 export function TasksView() {
@@ -18,7 +19,7 @@ export function TasksView() {
     let cancelled = false;
     void api.getTasks().then((data) => {
       if (cancelled) return;
-      useStore.getState().mergeBlocks(data.tasks.map((item) => item.block));
+      installMergedBlocks(data.tasks.map((item) => item.block));
       setItems(data.tasks);
     });
     return () => {

@@ -7,7 +7,7 @@ import {
 } from '@taproot/shared';
 import { generateKeyBetween } from 'fractional-indexing';
 import { nanoid } from 'nanoid';
-import { api } from '@/lib/api';
+import { enqueueOps, setPendingTextProvider } from '@/lib/offline/sync';
 import {
   childrenOf,
   hasChildren,
@@ -17,10 +17,10 @@ import {
 } from '@/lib/outline';
 import { useStore } from '@/store';
 
-/** apply ops optimistically and send them to the server */
+/** apply ops optimistically and queue them for the server */
 function dispatch(ops: Op[]) {
   useStore.getState().applyOps(ops);
-  void api.postOps(ops);
+  void enqueueOps(ops);
 }
 
 // --- text updates: applied locally per keystroke, sent to the server debounced ---
@@ -47,8 +47,24 @@ export function flushText() {
     text,
   }));
   pendingText.clear();
-  void api.postOps(ops);
+  void enqueueOps(ops);
 }
+
+// snapshot installs overlay the debounce buffer so a refetch that lands
+// inside the 400 ms window can't clobber what's being typed
+setPendingTextProvider(() =>
+  [...pendingText.entries()].map(([id, text]) => ({
+    type: 'update_text',
+    id,
+    text,
+  })),
+);
+
+// flush the debounce buffer when the tab goes to the background — otherwise
+// closing the tab within 400 ms of typing would drop the buffered text
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') flushText();
+});
 
 /**
  * Checkbox click: flip TODO ↔ DONE (only defined for blocks that are tasks).

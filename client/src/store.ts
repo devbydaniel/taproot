@@ -15,12 +15,20 @@ interface OutlineState {
   openDrawingId: string | null;
   /** bumped whenever remote ops arrive, so views can refetch derived data (linked refs, sidebar) */
   remoteEpoch: number;
+  /** driven by the WebSocket (open/close), not navigator.onLine */
+  connectivity: 'online' | 'offline';
+  /** queued write batches not yet confirmed by the server */
+  pendingCount: number;
   setPages: (pages: Page[]) => void;
   /** replace the loaded blocks of one page with a fresh server snapshot */
   loadPageBlocks: (pageId: string, blocks: Block[]) => void;
   mergeBlocks: (blocks: Block[]) => void;
   applyOps: (ops: Op[]) => void;
   bumpRemoteEpoch: () => void;
+  setConnectivity: (connectivity: 'online' | 'offline') => void;
+  setPendingCount: (pendingCount: number) => void;
+  /** an offline-created page turned out to exist server-side under another id */
+  remapPageId: (from: string, to: string) => void;
   setFocus: (target: FocusTarget | null) => void;
   setOpenDrawing: (blockId: string | null) => void;
 }
@@ -148,6 +156,19 @@ function applyOpToPages(pages: Page[], op: Op): Page[] {
       page.id === op.id ? { ...page, pinnedOrderKey: op.orderKey } : page,
     );
   }
+  if (op.type === 'create_page') {
+    // emitted when a page is created offline; online, pages arrive via fetch
+    if (pages.some((page) => page.id === op.id)) return pages;
+    return [
+      ...pages,
+      {
+        id: op.id,
+        title: op.title,
+        createdAt: Date.now(),
+        pinnedOrderKey: null,
+      },
+    ];
+  }
   return pages;
 }
 
@@ -157,6 +178,8 @@ export const useStore = create<OutlineState>((set) => ({
   focused: null,
   openDrawingId: null,
   remoteEpoch: 0,
+  connectivity: 'online',
+  pendingCount: 0,
   setPages: (pages) => set({ pages }),
   loadPageBlocks: (pageId, incoming) =>
     set((state) => {
@@ -193,6 +216,20 @@ export const useStore = create<OutlineState>((set) => ({
     }),
   bumpRemoteEpoch: () =>
     set((state) => ({ remoteEpoch: state.remoteEpoch + 1 })),
+  setConnectivity: (connectivity) => set({ connectivity }),
+  setPendingCount: (pendingCount) => set({ pendingCount }),
+  remapPageId: (from, to) =>
+    set((state) => ({
+      pages: state.pages.map((page) =>
+        page.id === from ? { ...page, id: to } : page,
+      ),
+      blocks: Object.fromEntries(
+        Object.values(state.blocks).map((block) => [
+          block.id,
+          block.pageId === from ? { ...block, pageId: to } : block,
+        ]),
+      ),
+    })),
   setFocus: (focused) => set({ focused }),
   setOpenDrawing: (openDrawingId) => set({ openDrawingId }),
 }));

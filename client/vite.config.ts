@@ -4,6 +4,7 @@ import { cpSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin, type PluginOption } from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
 
 const FONTS_SRC = fileURLToPath(
   new URL(
@@ -45,6 +46,45 @@ const plugins = [
   react(),
   tailwindcss(),
   excalidrawFonts(),
+  // Offline app shell. The service worker deliberately never touches /api:
+  // the IndexedDB layer in src/lib/offline owns offline data, GET
+  // /api/pages/by-title/:title has a write side effect (ensurePage), and
+  // replaying POST /api/ops belongs to the app-level op queue — a SW-level
+  // retry (workbox-background-sync) would double-replay. Keep it that way.
+  VitePWA({
+    registerType: 'autoUpdate',
+    injectRegister: false, // registered manually in src/lib/sw.ts
+    manifest: false, // public/manifest.webmanifest is hand-maintained
+    workbox: {
+      // required for autoUpdate to actually apply: a new SW must activate
+      // immediately and claim open clients, or it sits waiting forever and
+      // tabs keep serving the previous build from precache
+      skipWaiting: true,
+      clientsClaim: true,
+      globPatterns: ['**/*.{js,css,html,svg,png,webmanifest,woff2}'],
+      // 13 MB of mostly-unused font variants; runtime-cached below instead
+      globIgnores: ['excalidraw/**'],
+      // largest chunk is ~1.8 MB; leave headroom over the 2 MiB default
+      maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+      cleanupOutdatedCaches: true,
+      navigateFallback: '/index.html',
+      navigateFallbackDenylist: [/^\/api\//, /^\/ws/],
+      runtimeCaching: [
+        {
+          urlPattern: /\/excalidraw\/fonts\/.*\.woff2$/,
+          handler: 'CacheFirst',
+          options: {
+            cacheName: 'excalidraw-fonts',
+            expiration: {
+              maxEntries: 300,
+              maxAgeSeconds: 365 * 24 * 60 * 60,
+            },
+            cacheableResponse: { statuses: [0, 200] },
+          },
+        },
+      ],
+    },
+  }),
 ] as unknown as PluginOption[];
 
 export default defineConfig({

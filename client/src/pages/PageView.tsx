@@ -13,6 +13,7 @@ import { LinkedRefs } from '@/components/LinkedRefs';
 import { OutlineTree } from '@/components/OutlineTree';
 import { PageTasks } from '@/components/PageTasks';
 import { api } from '@/lib/api';
+import { installMergedBlocks, installPageSnapshot } from '@/lib/offline/sync';
 import { hasChildren, visibleOrder, type OutlineCtx } from '@/lib/outline';
 import { useStore } from '@/store';
 
@@ -36,12 +37,10 @@ export function PageView({ id }: { id: string }) {
       .getPage(id)
       .then((data) => {
         if (cancelled) return;
-        useStore.getState().loadPageBlocks(id, data.blocks);
+        installPageSnapshot(id, data.blocks);
         // linked-ref blocks live on other pages; merge them so checkbox
         // toggles in the references section render immediately
-        useStore
-          .getState()
-          .mergeBlocks(data.linkedRefs.flatMap((g) => g.blocks));
+        installMergedBlocks(data.linkedRefs.flatMap((g) => g.blocks));
         setPayload(data);
         if (autoFocused.current !== id) {
           autoFocused.current = id;

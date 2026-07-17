@@ -5,6 +5,7 @@ import * as actions from '@/actions';
 import { RefGroupCard } from '@/components/LinkedRefs';
 import { OutlineTree } from '@/components/OutlineTree';
 import { api } from '@/lib/api';
+import { installMergedBlocks, installPageSnapshot } from '@/lib/offline/sync';
 import { visibleOrder, type OutlineCtx } from '@/lib/outline';
 import { useStore } from '@/store';
 
@@ -22,21 +23,24 @@ export function JournalView() {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      await api.pageByTitle(todayTitle()); // ensure today's page exists
+      const todayPage = await api.pageByTitle(todayTitle()); // ensure today's page exists
       const data = await api.getJournal({ limit: loadedLimit.current });
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- set by the cleanup closure; TS can't see cross-closure writes
       if (cancelled) return;
-      const store = useStore.getState();
-      for (const day of data.days)
-        store.loadPageBlocks(day.page.id, day.blocks);
+      // offline, the cached journal window may predate today's page — the
+      // one pageByTitle just ensured (or created locally); synthesize it
+      const days = data.days.some((d) => d.page.title === todayPage.title)
+        ? data.days
+        : [{ page: todayPage, blocks: [], linkedRefs: [] }, ...data.days];
+      for (const day of days) installPageSnapshot(day.page.id, day.blocks);
       // ref blocks live on other pages; merge them so checkbox toggles in
       // the references sections render immediately (same as PageView)
-      store.mergeBlocks(
-        data.days.flatMap((day) => day.linkedRefs.flatMap((g) => g.blocks)),
+      installMergedBlocks(
+        days.flatMap((day) => day.linkedRefs.flatMap((g) => g.blocks)),
       );
-      setDays(data.days);
+      setDays(days);
       setHasMore(data.hasMore);
-      const today = data.days.find((d) => d.page.title === todayTitle());
+      const today = days.find((d) => d.page.title === todayTitle());
       if (!autoFocused.current && today) {
         autoFocused.current = true;
         const ctx: OutlineCtx = { pageId: today.page.id, rootParentId: null };
@@ -59,9 +63,8 @@ export function JournalView() {
       before: last.page.title,
       limit: PAGE_SIZE,
     });
-    const store = useStore.getState();
-    for (const day of data.days) store.loadPageBlocks(day.page.id, day.blocks);
-    store.mergeBlocks(
+    for (const day of data.days) installPageSnapshot(day.page.id, day.blocks);
+    installMergedBlocks(
       data.days.flatMap((day) => day.linkedRefs.flatMap((g) => g.blocks)),
     );
     setDays([...days, ...data.days]);

@@ -42,6 +42,8 @@ docker run -p 3000:3000 -v taproot-data:/data taproot
 
 No auth built in — put it behind a reverse proxy (Authelia, basic auth, Tailscale) if exposed.
 
+Taproot is an installable PWA with full offline support: visited pages render from a local cache, and edits made offline queue in IndexedDB and replay when the server is reachable again. The service worker needs a secure context — serve over https (reverse proxy) or localhost; on plain http the app works, just without the offline shell.
+
 ## Data model
 
 Three tables: `pages` (id, title), `blocks` (id, page_id, parent_id, order_key, text), `refs` (block_id, page_id — derived by parsing `[[...]]` on every write). Linked references and zoom views are plain indexed queries. Blocks are the atomic unit; markdown export would be a projection, not the storage format.

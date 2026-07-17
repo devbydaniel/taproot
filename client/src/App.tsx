@@ -5,6 +5,7 @@ import { Redirect, Route, Switch, useLocation } from 'wouter';
 import { CommandPalette } from '@/components/CommandPalette';
 import { Sidebar } from '@/components/Sidebar';
 import { api } from '@/lib/api';
+import { installPages } from '@/lib/offline/sync';
 import { startWs } from '@/lib/ws';
 import { JournalView } from '@/pages/JournalView';
 import { PagesView } from '@/pages/PagesView';
@@ -33,7 +34,7 @@ export function App() {
   // keeps the store's page list fresh for the [[ autocomplete and the pages
   // view; location is a dep so auto-created pages show up after navigation
   useEffect(() => {
-    void api.listPages().then((list) => useStore.getState().setPages(list));
+    void api.listPages().then((list) => installPages(list));
   }, [remoteEpoch, location]);
 
   return (

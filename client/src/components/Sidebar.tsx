@@ -22,8 +22,10 @@ import {
   ListTodo,
   Moon,
   PinOff,
+  RefreshCw,
   Sprout,
   Sun,
+  WifiOff,
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { movePinnedPage, togglePagePinned } from '@/actions';
@@ -77,6 +79,29 @@ function SortablePinnedItem({ page, active }: { page: Page; active: boolean }) {
       </button>
     </Link>
   );
+}
+
+/** offline / pending-sync indicator; renders nothing when all is well */
+function SyncStatus() {
+  const connectivity = useStore((s) => s.connectivity);
+  const pendingCount = useStore((s) => s.pendingCount);
+  if (connectivity === 'offline') {
+    return (
+      <div className="flex items-center gap-2 px-2 py-1 text-sm text-muted-foreground">
+        <WifiOff className="h-4 w-4" />
+        {pendingCount > 0 ? `Offline · ${pendingCount} pending` : 'Offline'}
+      </div>
+    );
+  }
+  if (pendingCount > 0) {
+    return (
+      <div className="flex items-center gap-2 px-2 py-1 text-sm text-muted-foreground">
+        <RefreshCw className="h-4 w-4 animate-spin" />
+        Syncing…
+      </div>
+    );
+  }
+  return null;
 }
 
 export function Sidebar({
@@ -176,6 +201,7 @@ export function Sidebar({
           </nav>
         )}
         <div className="mt-auto px-2 pb-3">
+          <SyncStatus />
           <button onClick={toggleTheme} className={navItemClass(false)}>
             {theme === 'dark' ? (
               <Sun className="h-4 w-4" />
