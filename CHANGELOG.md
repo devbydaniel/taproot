@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.11.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.10.0...taproot-v0.11.0) (2026-07-17)
+
+
+### Features
+
+* breadcrumbs in linked references ([968a49d](https://github.com/devbydaniel/taproot/commit/968a49d24a6fa6aca3978b5c4a7f3fe69f46f7c8))
+* installable PWA with full offline read and write ([55a0b71](https://github.com/devbydaniel/taproot/commit/55a0b717195a81a58c667a9012e5e7b8c286559d))
+* move page tasks section below the outline ([2734d2a](https://github.com/devbydaniel/taproot/commit/2734d2ac3d8704d8f4bdc0b6acfa92dec30c8163))
+* since= filter to time-scope linked references ([3941c7f](https://github.com/devbydaniel/taproot/commit/3941c7f021ff43433838ba18e4d9e7da9960bf48))
+
+
+### Bug Fixes
+
+* bump GitHub Actions to Node 24 runtimes ([d693c06](https://github.com/devbydaniel/taproot/commit/d693c061b271bd0dd138f70a4ff461becad537a8))
+
 ## [0.10.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.9.0...taproot-v0.10.0) (2026-07-12)
 
 
