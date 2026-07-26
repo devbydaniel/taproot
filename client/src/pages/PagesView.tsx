@@ -1,6 +1,7 @@
 import { isDailyTitle } from '@taproot/shared';
 import { FileText } from 'lucide-react';
 import { Link } from 'wouter';
+import { PageShell } from '@/components/layout/PageShell';
 import { useStore } from '@/store';
 
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' });
@@ -10,13 +11,10 @@ export function PagesView() {
   const nonDaily = pages.filter((page) => !isDailyTitle(page.title));
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 md:px-8 md:py-10">
-      <div className="mb-8 flex items-baseline gap-3">
-        <h1 className="text-3xl font-bold tracking-tight">Pages</h1>
-        <span className="text-sm text-muted-foreground">
-          {nonDaily.length} {nonDaily.length === 1 ? 'page' : 'pages'}
-        </span>
-      </div>
+    <PageShell crumbs={[{ label: 'Pages' }]}>
+      <p className="mb-4 text-sm text-muted-foreground">
+        {nonDaily.length} {nonDaily.length === 1 ? 'page' : 'pages'}
+      </p>
       {nonDaily.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No pages yet — create one from the sidebar or link it with
@@ -42,6 +40,6 @@ export function PagesView() {
           ))}
         </ul>
       )}
-    </div>
+    </PageShell>
   );
 }

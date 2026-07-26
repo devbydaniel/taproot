@@ -363,7 +363,7 @@ export function BlockEditor({
       ref={containerRef}
       className={cn(
         'w-full',
-        variant === 'title' && 'text-3xl font-bold',
+        variant === 'title' && 'text-lg font-semibold',
         className,
       )}
     />

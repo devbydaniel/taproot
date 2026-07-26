@@ -2,7 +2,8 @@ import type { ZoomPayload } from '@taproot/shared';
 import { useEffect, useState } from 'react';
 import * as actions from '@/actions';
 import { BlockEditor } from '@/components/BlockEditor';
-import { Breadcrumb } from '@/components/Breadcrumb';
+import { renderedPreview } from '@/components/Breadcrumb';
+import { PageShell } from '@/components/layout/PageShell';
 import { DrawingBlock } from '@/components/drawing/DrawingBlock';
 import { OutlineTree } from '@/components/OutlineTree';
 import { StaticText } from '@/components/StaticText';
@@ -59,13 +60,15 @@ export function ZoomView({ id }: { id: string }) {
   };
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 md:px-8 md:py-10">
-      <Breadcrumb
-        page={payload.page}
-        ancestors={payload.ancestors}
-        className="mb-4"
-      />
-
+    <PageShell
+      crumbs={[
+        { label: payload.page.title, href: `/p/${payload.page.id}` },
+        ...payload.ancestors.map((ancestor) => ({
+          label: renderedPreview(ancestor),
+          href: `/b/${ancestor.id}`,
+        })),
+      ]}
+    >
       <div className="mb-6">
         {(liveBlock ?? payload.block).kind === 'drawing' ? (
           <DrawingBlock block={liveBlock ?? payload.block} ctx={ctx} />
@@ -73,7 +76,7 @@ export function ZoomView({ id }: { id: string }) {
           <BlockEditor blockId={id} ctx={ctx} variant="title" />
         ) : (
           <h1
-            className="cursor-text text-3xl font-bold tracking-tight"
+            className="cursor-text text-lg font-semibold tracking-tight"
             onClick={() => setFocus({ blockId: id, cursor: 'end' })}
           >
             <StaticText text={titleText} />
@@ -92,6 +95,6 @@ export function ZoomView({ id }: { id: string }) {
         </button>
       )}
       <div className="h-24 cursor-text" onClick={clickBelow} />
-    </div>
+    </PageShell>
   );
 }

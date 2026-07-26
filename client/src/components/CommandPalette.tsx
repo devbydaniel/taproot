@@ -4,15 +4,12 @@ import { FileText, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { api } from '@/lib/api';
+import { setPaletteOpen, usePaletteOpen } from '@/lib/palette';
 import { useStore } from '@/store';
 
-export function CommandPalette({
-  open,
-  onOpenChange,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
+export function CommandPalette() {
+  const open = usePaletteOpen();
+  const onOpenChange = setPaletteOpen;
   const [query, setQuery] = useState('');
   const pages = useStore((s) => s.pages);
   const [, navigate] = useLocation();

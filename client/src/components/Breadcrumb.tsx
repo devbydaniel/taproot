@@ -4,7 +4,7 @@ import { Fragment } from 'react';
 import { Link } from 'wouter';
 import { cn } from '@/lib/utils';
 
-function renderedPreview(block: Block, max = 40): string {
+export function renderedPreview(block: Block, max = 40): string {
   if (block.kind === 'drawing') return 'Drawing';
   const rendered = segmentText(block.text)
     .map((segment) =>

@@ -7,6 +7,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'wouter';
 import { BlockContent } from '@/components/BlockContent';
+import { PageShell } from '@/components/layout/PageShell';
 import { api } from '@/lib/api';
 import { installMergedBlocks } from '@/lib/offline/sync';
 import { useStore } from '@/store';
@@ -37,9 +38,8 @@ export function TasksView() {
     buckets.inbox.length + buckets.due.length + buckets.planned.length;
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 md:px-8 md:py-10">
-      <h1 className="mb-1 text-3xl font-bold tracking-tight">Tasks</h1>
-      <p className="mb-8 text-sm text-muted-foreground">
+    <PageShell crumbs={[{ label: 'Tasks' }]}>
+      <p className="mb-6 text-sm text-muted-foreground">
         {count} open {count === 1 ? 'task' : 'tasks'}
       </p>
       {count === 0 ? (
@@ -54,7 +54,7 @@ export function TasksView() {
           <TaskSection title="Planned" items={buckets.planned} />
         </>
       )}
-    </div>
+    </PageShell>
   );
 }
 

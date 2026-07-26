@@ -2,6 +2,7 @@ import { dailyLabel, todayTitle, type JournalDay } from '@taproot/shared';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'wouter';
 import * as actions from '@/actions';
+import { PageShell } from '@/components/layout/PageShell';
 import { RefGroupCard } from '@/components/LinkedRefs';
 import { OutlineTree } from '@/components/OutlineTree';
 import { api } from '@/lib/api';
@@ -75,8 +76,7 @@ export function JournalView() {
   if (!days) return null;
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 md:px-8 md:py-10">
-      <h1 className="mb-8 text-3xl font-bold tracking-tight">Journal</h1>
+    <PageShell crumbs={[{ label: 'Journal' }]}>
       {days.map((day) => (
         <DaySection key={day.page.id} day={day} />
       ))}
@@ -88,7 +88,7 @@ export function JournalView() {
           Load more
         </button>
       )}
-    </div>
+    </PageShell>
   );
 }
 
@@ -109,7 +109,7 @@ function DaySection({ day }: { day: JournalDay }) {
       <div className="mb-2 flex items-baseline gap-3">
         <Link
           href={`/p/${pageId}`}
-          className="text-xl font-semibold tracking-tight hover:underline"
+          className="text-lg font-semibold tracking-tight hover:underline"
         >
           {day.page.title}
         </Link>

@@ -27,20 +27,32 @@ import {
   Sun,
   WifiOff,
 } from 'lucide-react';
+import { useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import { movePinnedPage, togglePagePinned } from '@/actions';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuAction,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  useSidebar,
+} from '@/components/ui/sidebar';
 import { toggleTheme, useTheme } from '@/lib/theme';
 import { cn } from '@/lib/utils';
 import { useStore } from '@/store';
 import type { Page } from '@taproot/shared';
 
-const navItemClass = (active: boolean) =>
-  cn(
-    'flex w-full items-center gap-2 rounded-md px-2 py-1 text-sm transition-colors',
-    active
-      ? 'bg-accent font-medium text-accent-foreground'
-      : 'text-foreground/80 hover:bg-accent/60',
-  );
+const NAV_ITEMS = [
+  { href: '/journal', label: 'Journal', icon: BookOpen },
+  { href: '/pages', label: 'Pages', icon: FileText },
+  { href: '/tasks', label: 'Tasks', icon: ListTodo },
+] as const;
 
 function SortablePinnedItem({ page, active }: { page: Page; active: boolean }) {
   const {
@@ -53,31 +65,30 @@ function SortablePinnedItem({ page, active }: { page: Page; active: boolean }) {
   } = useSortable({ id: page.id });
 
   return (
-    <Link
+    // the li is the sortable node so restrictToParentElement spans the menu
+    <SidebarMenuItem
       ref={setNodeRef}
-      href={`/p/${page.id}`}
-      draggable={false}
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
       }}
-      className={cn('group', navItemClass(active), isDragging && 'opacity-50')}
+      className={cn(isDragging && 'opacity-50')}
       {...attributes}
       {...listeners}
     >
-      <span className="min-w-0 flex-1 truncate">{page.title}</span>
-      <button
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          togglePagePinned(page.id);
-        }}
+      <SidebarMenuButton asChild isActive={active}>
+        <Link href={`/p/${page.id}`} draggable={false}>
+          <span>{page.title}</span>
+        </Link>
+      </SidebarMenuButton>
+      <SidebarMenuAction
+        showOnHover
         title="Unpin"
-        className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground transition-opacity hover:text-foreground md:opacity-0 md:group-hover:opacity-100"
+        onClick={() => togglePagePinned(page.id)}
       >
-        <PinOff className="h-3.5 w-3.5" />
-      </button>
-    </Link>
+        <PinOff className="size-3.5" />
+      </SidebarMenuAction>
+    </SidebarMenuItem>
   );
 }
 
@@ -88,7 +99,7 @@ function SyncStatus() {
   if (connectivity === 'offline') {
     return (
       <div className="flex items-center gap-2 px-2 py-1 text-sm text-muted-foreground">
-        <WifiOff className="h-4 w-4" />
+        <WifiOff className="size-4" />
         {pendingCount > 0 ? `Offline · ${pendingCount} pending` : 'Offline'}
       </div>
     );
@@ -96,7 +107,7 @@ function SyncStatus() {
   if (pendingCount > 0) {
     return (
       <div className="flex items-center gap-2 px-2 py-1 text-sm text-muted-foreground">
-        <RefreshCw className="h-4 w-4 animate-spin" />
+        <RefreshCw className="size-4 animate-spin" />
         Syncing…
       </div>
     );
@@ -104,21 +115,21 @@ function SyncStatus() {
   return null;
 }
 
-export function Sidebar({
-  open,
-  onClose,
-}: {
-  open: boolean;
-  onClose: () => void;
-}) {
+export function AppSidebar() {
   const [location] = useLocation();
   const theme = useTheme();
+  const { setOpenMobile } = useSidebar();
   const pages = useStore((s) => s.pages);
   const pinned = pages
     .filter((p) => p.pinnedOrderKey !== null)
     // code-point comparison: fractional-index keys are case-sensitive,
     // locale collation would put 'Zz' after 'a0'
     .sort((a, b) => (a.pinnedOrderKey! < b.pinnedOrderKey! ? -1 : 1));
+
+  // the mobile drawer closes on any navigation
+  useEffect(() => {
+    setOpenMobile(false);
+  }, [location, setOpenMobile]);
 
   const sensors = useSensors(
     // distance keeps plain clicks navigating; drags start after 5px of movement
@@ -138,48 +149,31 @@ export function Sidebar({
   };
 
   return (
-    <>
-      {open && (
-        <div
-          className="fixed inset-0 z-30 bg-black/40 md:hidden"
-          onClick={onClose}
-        />
-      )}
-      <aside
-        className={cn(
-          // mobile: overlay drawer; ≥md: the original static column
-          'fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col border-r',
-          'bg-background transition-transform duration-200 ease-out',
-          open ? 'translate-x-0' : '-translate-x-full',
-          'md:static md:translate-x-0 md:bg-muted/30 md:transition-none',
-        )}
-      >
-        <div className="flex items-center gap-2 px-4 pt-5 pb-3">
-          <Sprout className="h-5 w-5 text-foreground" />
+    <Sidebar variant="inset" collapsible="offcanvas">
+      <SidebarHeader>
+        <div className="flex items-center gap-2 p-2">
+          <Sprout className="size-5" />
           <span className="text-lg font-semibold tracking-tight">Taproot</span>
         </div>
-        <nav className="px-2 pb-2">
-          <Link
-            href="/journal"
-            className={navItemClass(location === '/journal')}
-          >
-            <BookOpen className="h-4 w-4" />
-            Journal
-          </Link>
-          <Link href="/pages" className={navItemClass(location === '/pages')}>
-            <FileText className="h-4 w-4" />
-            Pages
-          </Link>
-          <Link href="/tasks" className={navItemClass(location === '/tasks')}>
-            <ListTodo className="h-4 w-4" />
-            Tasks
-          </Link>
-        </nav>
+      </SidebarHeader>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarMenu>
+            {NAV_ITEMS.map(({ href, label, icon: Icon }) => (
+              <SidebarMenuItem key={href}>
+                <SidebarMenuButton asChild isActive={location === href}>
+                  <Link href={href}>
+                    <Icon />
+                    <span>{label}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroup>
         {pinned.length > 0 && (
-          <nav className="px-2 pb-2">
-            <div className="px-2 pt-3 pb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              Pinned
-            </div>
+          <SidebarGroup>
+            <SidebarGroupLabel>Pinned</SidebarGroupLabel>
             <DndContext
               sensors={sensors}
               modifiers={[restrictToVerticalAxis, restrictToParentElement]}
@@ -189,29 +183,31 @@ export function Sidebar({
                 items={pinned.map((p) => p.id)}
                 strategy={verticalListSortingStrategy}
               >
-                {pinned.map((page) => (
-                  <SortablePinnedItem
-                    key={page.id}
-                    page={page}
-                    active={location === `/p/${page.id}`}
-                  />
-                ))}
+                <SidebarMenu>
+                  {pinned.map((page) => (
+                    <SortablePinnedItem
+                      key={page.id}
+                      page={page}
+                      active={location === `/p/${page.id}`}
+                    />
+                  ))}
+                </SidebarMenu>
               </SortableContext>
             </DndContext>
-          </nav>
+          </SidebarGroup>
         )}
-        <div className="mt-auto px-2 pb-3">
-          <SyncStatus />
-          <button onClick={toggleTheme} className={navItemClass(false)}>
-            {theme === 'dark' ? (
-              <Sun className="h-4 w-4" />
-            ) : (
-              <Moon className="h-4 w-4" />
-            )}
-            {theme === 'dark' ? 'Light mode' : 'Dark mode'}
-          </button>
-        </div>
-      </aside>
-    </>
+      </SidebarContent>
+      <SidebarFooter>
+        <SyncStatus />
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={toggleTheme}>
+              {theme === 'dark' ? <Sun /> : <Moon />}
+              <span>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </Sidebar>
   );
 }

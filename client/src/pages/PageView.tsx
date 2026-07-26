@@ -9,9 +9,11 @@ import { ChevronLeft, ChevronRight, Pin } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import * as actions from '@/actions';
+import { PageShell } from '@/components/layout/PageShell';
 import { LinkedRefs } from '@/components/LinkedRefs';
 import { OutlineTree } from '@/components/OutlineTree';
 import { PageTasks } from '@/components/PageTasks';
+import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api';
 import { installMergedBlocks, installPageSnapshot } from '@/lib/offline/sync';
 import { hasChildren, visibleOrder, type OutlineCtx } from '@/lib/outline';
@@ -83,28 +85,34 @@ export function PageView({ id }: { id: string }) {
   const isDaily = isDailyTitle(payload.page.title);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 md:px-8 md:py-10">
-      <div
-        className={
-          'group flex items-center gap-2 ' + (isDaily ? 'mb-1' : 'mb-6')
-        }
-      >
-        <h1 className="text-3xl font-bold tracking-tight">
-          {payload.page.title}
-        </h1>
-        <button
+    <PageShell
+      crumbs={[
+        isDaily
+          ? { label: 'Journal', href: '/journal' }
+          : { label: 'Pages', href: '/pages' },
+        { label: payload.page.title },
+      ]}
+      actions={
+        <Button
+          variant="ghost"
+          size="icon"
+          className={
+            'size-7 ' + (pinned ? 'text-foreground' : 'text-muted-foreground')
+          }
           onClick={() => actions.togglePagePinned(id)}
           title={pinned ? 'Unpin from sidebar' : 'Pin to sidebar'}
-          className={
-            'flex h-7 w-7 items-center justify-center rounded-md transition-colors hover:bg-accent ' +
-            (pinned
-              ? 'text-foreground'
-              : 'text-muted-foreground md:opacity-0 md:group-hover:opacity-100')
-          }
         >
-          <Pin className={'h-4 w-4' + (pinned ? ' fill-current' : '')} />
-        </button>
-      </div>
+          <Pin className={pinned ? 'fill-current' : ''} />
+        </Button>
+      }
+    >
+      <h1
+        className={
+          'text-lg font-semibold tracking-tight ' + (isDaily ? 'mb-1' : 'mb-4')
+        }
+      >
+        {payload.page.title}
+      </h1>
       {isDaily && <DailyNav title={payload.page.title} />}
       {hasBlocks ? (
         <OutlineTree parentId={null} ctx={ctx} />
@@ -119,7 +127,7 @@ export function PageView({ id }: { id: string }) {
       <div className="h-24 cursor-text" onClick={clickBelow} />
       <PageTasks groups={payload.linkedRefs} />
       <LinkedRefs groups={payload.linkedRefs} currentPageId={payload.page.id} />
-    </div>
+    </PageShell>
   );
 }
 
