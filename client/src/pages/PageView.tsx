@@ -118,7 +118,7 @@ export function PageView({ id }: { id: string }) {
       )}
       <div className="h-24 cursor-text" onClick={clickBelow} />
       <PageTasks groups={payload.linkedRefs} />
-      <LinkedRefs groups={payload.linkedRefs} />
+      <LinkedRefs groups={payload.linkedRefs} currentPageId={payload.page.id} />
     </div>
   );
 }

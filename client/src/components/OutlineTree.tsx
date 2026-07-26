@@ -1,14 +1,11 @@
-import { parseTask, type Block } from '@taproot/shared';
+import type { Block } from '@taproot/shared';
 import { ChevronRight } from 'lucide-react';
-import { useRef } from 'react';
 import { Link } from 'wouter';
 import { setCollapsed } from '@/actions';
-import { renderedOffsetFromPoint, renderedToRaw } from '@/lib/clickpos';
 import { childrenOf, type OutlineCtx } from '@/lib/outline';
 import { useStore } from '@/store';
-import { BlockContent } from './BlockContent';
-import { BlockEditor } from './BlockEditor';
 import { DrawingBlock } from './drawing/DrawingBlock';
+import { EditableBlockText } from './EditableBlockText';
 
 export function OutlineTree({
   parentId,
@@ -29,32 +26,9 @@ export function OutlineTree({
 }
 
 function BlockRow({ block, ctx }: { block: Block; ctx: OutlineCtx }) {
-  const isFocused = useStore((s) => s.focused?.blockId === block.id);
   const hasKids = useStore((s) =>
     Object.values(s.blocks).some((b) => b.parentId === block.id),
   );
-  const contentRef = useRef<HTMLDivElement>(null);
-  const setFocus = useStore((s) => s.setFocus);
-
-  const focusAtPoint = (event: React.MouseEvent) => {
-    if ((event.target as Element).closest('a,button')) return;
-    const container = contentRef.current;
-    // a task marker is hidden in rendered mode, so map clicks within the
-    // visible rest and shift by the hidden prefix length
-    const visible = parseTask(block.text)?.rest ?? block.text;
-    const prefixLength = block.text.length - visible.length;
-    let cursor: number | 'end' = 'end';
-    if (container) {
-      const rendered = renderedOffsetFromPoint(
-        container,
-        event.clientX,
-        event.clientY,
-      );
-      if (rendered != null)
-        cursor = renderedToRaw(visible, rendered) + prefixLength;
-    }
-    setFocus({ blockId: block.id, cursor });
-  };
 
   return (
     <div>
@@ -87,24 +61,13 @@ function BlockRow({ block, ctx }: { block: Block; ctx: OutlineCtx }) {
             }
           />
         </Link>
-        <div
-          ref={contentRef}
-          className={
-            'min-w-0 flex-1 leading-6' +
-            (block.kind === 'drawing' ? '' : ' cursor-text')
-          }
-          onClick={
-            block.kind === 'drawing' || isFocused ? undefined : focusAtPoint
-          }
-        >
-          {block.kind === 'drawing' ? (
+        {block.kind === 'drawing' ? (
+          <div className="min-w-0 flex-1 leading-6">
             <DrawingBlock block={block} ctx={ctx} />
-          ) : isFocused ? (
-            <BlockEditor blockId={block.id} ctx={ctx} />
-          ) : (
-            <BlockContent block={block} />
-          )}
-        </div>
+          </div>
+        ) : (
+          <EditableBlockText block={block} ctx={ctx} />
+        )}
       </div>
       {hasKids && !block.collapsed && (
         <div className="ml-[7px] border-l border-border pl-[23px]">

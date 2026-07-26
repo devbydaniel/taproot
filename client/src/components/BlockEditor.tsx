@@ -23,8 +23,13 @@ import { useStore } from '@/store';
 interface Props {
   blockId: string;
   ctx: OutlineCtx;
-  /** 'title' = the zoomed block rendered as a page heading */
-  variant?: 'block' | 'title';
+  /**
+   * 'title' = the zoomed block rendered as a page heading;
+   * 'ref' = text-only editing in a linked-references row — structural keys
+   * (split/indent/outdent/delete/neighbor-nav/collapse) are disabled because
+   * the source page is only partially loaded in the store
+   */
+  variant?: 'block' | 'title' | 'ref';
   className?: string;
 }
 
@@ -110,6 +115,9 @@ export function BlockEditor({
     const container = containerRef.current;
     if (!container) return;
 
+    // only the outline variant may change tree structure or move focus
+    const structural = variant === 'block';
+
     const boundaryMove = (view: EditorView, dir: -1 | 1): boolean => {
       if (completionStatus(view.state) === 'active') return false;
       const selection = view.state.selection.main;
@@ -155,6 +163,9 @@ export function BlockEditor({
               view.contentDOM.blur();
               return true;
             }
+            // in refs Enter must be consumed: falling through would insert
+            // a space via the singleLine filter
+            if (!structural) return true;
             // fallback for a dismissed completion popup
             if (view.state.doc.toString().trim() === '/draw') {
               actions.convertToDrawing(blockId);
@@ -176,7 +187,7 @@ export function BlockEditor({
           run: (view) => {
             if (completionStatus(view.state) === 'active')
               return acceptCompletion(view);
-            if (variant === 'title') return true;
+            if (!structural) return true;
             actions.indentBlock(blockId, view.state.selection.main.head, ctx);
             return true;
           },
@@ -184,7 +195,7 @@ export function BlockEditor({
         {
           key: 'Shift-Tab',
           run: (view) => {
-            if (variant === 'title') return true;
+            if (!structural) return true;
             actions.outdentBlock(blockId, view.state.selection.main.head, ctx);
             return true;
           },
@@ -193,7 +204,7 @@ export function BlockEditor({
           key: 'Backspace',
           run: (view) => {
             const selection = view.state.selection.main;
-            if (variant === 'title' || !selection.empty || selection.head !== 0)
+            if (!structural || !selection.empty || selection.head !== 0)
               return false;
             return actions.deleteEmptyBlock(blockId, ctx);
           },
@@ -208,13 +219,16 @@ export function BlockEditor({
         },
         {
           key: 'ArrowUp',
-          run: (view) => (variant === 'title' ? false : boundaryMove(view, -1)),
+          run: (view) => (structural ? boundaryMove(view, -1) : false),
         },
-        { key: 'ArrowDown', run: (view) => boundaryMove(view, 1) },
+        {
+          key: 'ArrowDown',
+          run: (view) => (variant === 'ref' ? false : boundaryMove(view, 1)),
+        },
         {
           key: 'ArrowLeft',
           run: (view) => {
-            if (variant === 'title') return false;
+            if (!structural) return false;
             const selection = view.state.selection.main;
             if (!selection.empty || selection.head !== 0) return false;
             return actions.focusNeighbor(blockId, -1, ctx, 'end');
@@ -223,7 +237,7 @@ export function BlockEditor({
         {
           key: 'ArrowRight',
           run: (view) => {
-            if (variant === 'title') return false;
+            if (!structural) return false;
             const selection = view.state.selection.main;
             if (!selection.empty || selection.head !== view.state.doc.length)
               return false;
@@ -235,7 +249,8 @@ export function BlockEditor({
           run: (view) => {
             if (completionStatus(view.state) === 'active') return false;
             if (variant === 'title') return false;
-            actions.setCollapsed(blockId, true);
+            // refs ignore collapsed state — consume to avoid Cmd-↑ scroll
+            if (structural) actions.setCollapsed(blockId, true);
             return true; // consume even on leaf blocks (no Cmd-↑ scroll)
           },
         },
@@ -244,7 +259,7 @@ export function BlockEditor({
           run: (view) => {
             if (completionStatus(view.state) === 'active') return false;
             if (variant === 'title') return false;
-            actions.setCollapsed(blockId, false);
+            if (structural) actions.setCollapsed(blockId, false);
             return true;
           },
         },
@@ -285,10 +300,9 @@ export function BlockEditor({
           history(),
           keymap.of([...historyKeymap, ...defaultKeymap]),
           autocompletion({
-            override:
-              variant === 'title'
-                ? [wikiCompletionSource]
-                : [wikiCompletionSource, makeSlashCompletionSource(blockId)],
+            override: structural
+              ? [wikiCompletionSource, makeSlashCompletionSource(blockId)]
+              : [wikiCompletionSource],
           }),
           EditorView.lineWrapping,
           singleLine,

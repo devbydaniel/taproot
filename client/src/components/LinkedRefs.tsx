@@ -1,11 +1,19 @@
 import type { Block, LinkedRefGroup } from '@taproot/shared';
 import { useMemo } from 'react';
 import { Link } from 'wouter';
+import type { OutlineCtx } from '@/lib/outline';
 import { useStore } from '@/store';
 import { BlockContent } from './BlockContent';
 import { Breadcrumb } from './Breadcrumb';
+import { EditableBlockText } from './EditableBlockText';
 
-export function LinkedRefs({ groups }: { groups: LinkedRefGroup[] }) {
+export function LinkedRefs({
+  groups,
+  currentPageId,
+}: {
+  groups: LinkedRefGroup[];
+  currentPageId: string;
+}) {
   const count = groups.reduce((sum, group) => sum + group.rootIds.length, 0);
   return (
     <section className="mt-16 border-t pt-6 pb-24">
@@ -20,15 +28,28 @@ export function LinkedRefs({ groups }: { groups: LinkedRefGroup[] }) {
         </p>
       ) : (
         groups.map((group) => (
-          <RefGroupCard key={group.page.id} group={group} />
+          <RefGroupCard
+            key={group.page.id}
+            group={group}
+            // a self-referencing page is already editable in the outline
+            // above; a second editor for the same block would go stale
+            editable={group.page.id !== currentPageId}
+          />
         ))
       )}
     </section>
   );
 }
 
-/** One page's worth of read-only outline. */
-export function RefGroupCard({ group }: { group: LinkedRefGroup }) {
+/** One page's worth of outline; text is editable in place unless the source
+ * page's outline is mounted in the same view. */
+export function RefGroupCard({
+  group,
+  editable = true,
+}: {
+  group: LinkedRefGroup;
+  editable?: boolean;
+}) {
   const byParent = useMemo(() => {
     const map = new Map<string, Block[]>();
     for (const block of group.blocks) {
@@ -47,6 +68,8 @@ export function RefGroupCard({ group }: { group: LinkedRefGroup }) {
     .map((id) => group.blocks.find((block) => block.id === id))
     .filter((block): block is Block => block !== undefined);
 
+  const ctx: OutlineCtx = { pageId: group.page.id, rootParentId: null };
+
   return (
     <div className="mb-6 rounded-lg border bg-muted/30 px-4 py-3">
       {roots.map((root, i) => (
@@ -56,7 +79,12 @@ export function RefGroupCard({ group }: { group: LinkedRefGroup }) {
             ancestors={group.ancestors[root.id] ?? []}
             className="mb-1 font-medium"
           />
-          <RefRow block={root} byParent={byParent} />
+          <RefRow
+            block={root}
+            byParent={byParent}
+            ctx={ctx}
+            editable={editable}
+          />
         </div>
       ))}
     </div>
@@ -66,9 +94,13 @@ export function RefGroupCard({ group }: { group: LinkedRefGroup }) {
 function RefRow({
   block,
   byParent,
+  ctx,
+  editable,
 }: {
   block: Block;
   byParent: Map<string, Block[]>;
+  ctx: OutlineCtx;
+  editable: boolean;
 }) {
   // prefer the store's copy so checkbox toggles render immediately
   const live = useStore((s) => s.blocks[block.id]) ?? block;
@@ -83,14 +115,24 @@ function RefRow({
         >
           <span className="block h-[6px] w-[6px] rounded-full bg-muted-foreground/70" />
         </Link>
-        <div className="min-w-0 flex-1 leading-6">
-          <BlockContent block={live} />
-        </div>
+        {editable && live.kind !== 'drawing' ? (
+          <EditableBlockText block={live} ctx={ctx} variant="ref" />
+        ) : (
+          <div className="min-w-0 flex-1 leading-6">
+            <BlockContent block={live} />
+          </div>
+        )}
       </div>
       {children.length > 0 && (
         <div className="ml-[7px] border-l border-border pl-[23px]">
           {children.map((child) => (
-            <RefRow key={child.id} block={child} byParent={byParent} />
+            <RefRow
+              key={child.id}
+              block={child}
+              byParent={byParent}
+              ctx={ctx}
+              editable={editable}
+            />
           ))}
         </div>
       )}

@@ -74,11 +74,13 @@ export function JournalView() {
 
   if (!days) return null;
 
+  const dayPageIds = new Set(days.map((day) => day.page.id));
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 md:px-8 md:py-10">
       <h1 className="mb-8 text-3xl font-bold tracking-tight">Journal</h1>
       {days.map((day) => (
-        <DaySection key={day.page.id} day={day} />
+        <DaySection key={day.page.id} day={day} dayPageIds={dayPageIds} />
       ))}
       {hasMore && (
         <button
@@ -92,7 +94,13 @@ export function JournalView() {
   );
 }
 
-function DaySection({ day }: { day: JournalDay }) {
+function DaySection({
+  day,
+  dayPageIds,
+}: {
+  day: JournalDay;
+  dayPageIds: Set<string>;
+}) {
   const pageId = day.page.id;
   const hasBlocks = useStore((s) =>
     Object.values(s.blocks).some((b) => b.pageId === pageId),
@@ -133,7 +141,13 @@ function DaySection({ day }: { day: JournalDay }) {
             Linked References
           </h3>
           {day.linkedRefs.map((group) => (
-            <RefGroupCard key={group.page.id} group={group} />
+            <RefGroupCard
+              key={group.page.id}
+              group={group}
+              // a source day rendered in this window already has an editable
+              // outline; a second editor for the same block would go stale
+              editable={!dayPageIds.has(group.page.id)}
+            />
           ))}
         </div>
       )}
