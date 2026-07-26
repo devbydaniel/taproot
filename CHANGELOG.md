@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.12.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.11.0...taproot-v0.12.0) (2026-07-26)
+
+
+### Features
+
+* **client:** inset sidebar app shell with shadcn Sidebar ([ced9197](https://github.com/devbydaniel/taproot/commit/ced9197f068c81f0e3eda1de1959dbb17ff33b4b))
+* **client:** journal opens today with calendar navigation ([5c63df7](https://github.com/devbydaniel/taproot/commit/5c63df7f2c39b6a73caf730d6d1fb909288119e7))
+* **client:** zinc + teal design tokens matching the Ayunis visual system ([a4bf155](https://github.com/devbydaniel/taproot/commit/a4bf155c2c10c9fe036dec4b6c4650c0e6318be1))
+
+
+### Bug Fixes
+
+* drop text updates for blocks that no longer exist ([0488ef8](https://github.com/devbydaniel/taproot/commit/0488ef811ee12407fcdf68012c9d47a819663400))
+
 ## [0.11.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.10.0...taproot-v0.11.0) (2026-07-26)
 
 
