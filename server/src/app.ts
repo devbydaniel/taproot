@@ -1,26 +1,15 @@
 import { zValidator } from '@hono/zod-validator';
-import {
-  isDailyTitle,
-  opsRequestSchema,
-  type OpsBroadcast,
-} from '@taproot/shared';
+import { opsRequestSchema, type OpsBroadcast } from '@taproot/shared';
 import { Hono } from 'hono';
-import { z } from 'zod';
 import { createAgentApi } from './agentApi.js';
 import type { Store } from './db.js';
 import { applyOps, ensurePage } from './ops.js';
 import {
-  getJournal,
   getPagePayload,
   getTaskList,
   getZoomPayload,
   listPages,
 } from './queries.js';
-
-const journalQuerySchema = z.object({
-  before: z.string().refine(isDailyTitle).optional(),
-  limit: z.string().regex(/^\d+$/).optional(),
-});
 
 // routes must stay chained on one expression: hc<ApiType> infers the client
 // from the accumulated type, and separate `api.get(...)` statements lose it
@@ -31,24 +20,6 @@ export function createApi(
   return new Hono()
     .get('/pages', (c) => c.json(listPages(store), 200))
     .get('/tasks', (c) => c.json(getTaskList(store), 200))
-    .get(
-      '/journal',
-      zValidator('query', journalQuerySchema, (result, c) => {
-        if (!result.success) {
-          return c.json({ error: 'invalid journal query' }, 400);
-        }
-      }),
-      (c) => {
-        const { before, limit } = c.req.valid('query');
-        return c.json(
-          getJournal(store, {
-            before,
-            limit: limit === undefined ? undefined : Number(limit),
-          }),
-          200,
-        );
-      },
-    )
     .get('/pages/by-title/:title', (c) => {
       const title = c.req.param('title').trim();
       if (!title) return c.json({ error: 'empty title' }, 400);

@@ -32,6 +32,7 @@
     "nanoid": "^5.0.9",
     "radix-ui": "1.6.7",
     "react": "^19.0.0",
+    "react-day-picker": "9.14.0",
     "react-dom": "^19.0.0",
     "tailwind-merge": "^3.3.1",
     "wouter": "^3.3.5",

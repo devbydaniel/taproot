@@ -40,7 +40,7 @@ export function LinkedRefs({
 }
 
 /** One page's worth of outline; text is editable in place. */
-export function RefGroupCard({
+function RefGroupCard({
   group,
   hostPageId,
 }: {

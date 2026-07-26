@@ -1,11 +1,13 @@
 import {
   dailyLabel,
+  formatDailyTitle,
   isDailyTitle,
+  parseDailyTitle,
   shiftDailyTitle,
   todayTitle,
   type PagePayload,
 } from '@taproot/shared';
-import { ChevronLeft, ChevronRight, Pin } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Pin } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import * as actions from '@/actions';
@@ -14,6 +16,12 @@ import { LinkedRefs } from '@/components/LinkedRefs';
 import { OutlineTree } from '@/components/OutlineTree';
 import { PageTasks } from '@/components/PageTasks';
 import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { api } from '@/lib/api';
 import { installMergedBlocks, installPageSnapshot } from '@/lib/offline/sync';
 import { hasChildren, visibleOrder, type OutlineCtx } from '@/lib/outline';
@@ -111,7 +119,7 @@ export function PageView({ id }: { id: string }) {
           'text-lg font-semibold tracking-tight ' + (isDaily ? 'mb-1' : 'mb-4')
         }
       >
-        {payload.page.title}
+        {isDaily ? dailyLabel(payload.page.title) : payload.page.title}
       </h1>
       {isDaily && <DailyNav title={payload.page.title} />}
       {hasBlocks ? (
@@ -131,9 +139,10 @@ export function PageView({ id }: { id: string }) {
   );
 }
 
-/** prev/next day + Today controls shown under the title of a daily page */
+/** prev/next day + calendar + Today controls shown under the title of a daily page */
 function DailyNav({ title }: { title: string }) {
   const [, navigate] = useLocation();
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const goTo = (target: string | null) => {
     if (!target) return;
@@ -142,13 +151,10 @@ function DailyNav({ title }: { title: string }) {
 
   return (
     <div className="mb-6 flex items-center gap-1">
-      <span className="mr-2 text-sm text-muted-foreground">
-        {dailyLabel(title)}
-      </span>
       <Button
         variant="ghost"
-        size="icon"
-        className="size-6 text-muted-foreground hover:text-foreground"
+        size="icon-xs"
+        className="text-muted-foreground hover:text-foreground"
         onClick={() => goTo(shiftDailyTitle(title, -1))}
         title="Previous day"
       >
@@ -156,18 +162,43 @@ function DailyNav({ title }: { title: string }) {
       </Button>
       <Button
         variant="ghost"
-        size="icon"
-        className="size-6 text-muted-foreground hover:text-foreground"
+        size="icon-xs"
+        className="text-muted-foreground hover:text-foreground"
         onClick={() => goTo(shiftDailyTitle(title, 1))}
         title="Next day"
       >
         <ChevronRight />
       </Button>
+      <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-6 text-muted-foreground hover:text-foreground"
+            title="Go to date"
+          >
+            <CalendarDays />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            weekStartsOn={1}
+            selected={parseDailyTitle(title) ?? undefined}
+            defaultMonth={parseDailyTitle(title) ?? undefined}
+            onSelect={(date) => {
+              if (!date) return;
+              setPickerOpen(false);
+              goTo(formatDailyTitle(date));
+            }}
+          />
+        </PopoverContent>
+      </Popover>
       {title !== todayTitle() && (
         <Button
           variant="ghost"
-          size="sm"
-          className="h-6 px-2 text-muted-foreground hover:text-foreground"
+          size="xs"
+          className="text-muted-foreground hover:text-foreground"
           onClick={() => goTo(todayTitle())}
         >
           Today

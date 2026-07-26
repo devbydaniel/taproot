@@ -100,19 +100,4 @@ export const api = {
       ),
     ),
   getTasks: () => cachedFetch('tasks', () => unwrap(client.tasks.$get())),
-  getJournal: (opts: { before?: string; limit?: number } = {}) => {
-    const fetcher = () =>
-      unwrap(
-        client.journal.$get({
-          query: {
-            before: opts.before,
-            limit: opts.limit === undefined ? undefined : String(opts.limit),
-          },
-        }),
-      );
-    // only the latest window is cached; offline shows the last-loaded days
-    return opts.before === undefined
-      ? cachedFetch('journal', fetcher)
-      : fetcher();
-  },
 };

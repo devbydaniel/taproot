@@ -1,3 +1,4 @@
+import { todayTitle } from '@taproot/shared';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
@@ -14,8 +15,13 @@ registerServiceWorker();
 initOffline({
   post: postOps,
   listServerPages: listPagesUncached,
-  // getJournal writes through to the offline cache; the result is discarded
-  refreshCaches: () => void api.getJournal().catch(() => undefined),
+  // warm today's page in the offline cache (title:… and page:…) so the
+  // journal opens offline; the results are discarded
+  refreshCaches: () =>
+    void api
+      .pageByTitle(todayTitle())
+      .then((page) => api.getPage(page.id))
+      .catch(() => undefined),
 })
   .catch((err: unknown) => {
     console.error('offline support unavailable', err);
