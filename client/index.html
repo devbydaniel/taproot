@@ -18,6 +18,7 @@
     </script>
     <script>
       // apply the persisted theme before first paint to avoid a light flash
+      // (hex must match the dark --background in index.css)
       const theme = localStorage.getItem('taproot-theme');
       if (
         theme === 'dark' ||
@@ -26,7 +27,7 @@
         document.documentElement.classList.add('dark');
         document
           .querySelector('meta[name="theme-color"]')
-          .setAttribute('content', '#252525');
+          .setAttribute('content', '#09090b');
       }
     </script>
   </head>
