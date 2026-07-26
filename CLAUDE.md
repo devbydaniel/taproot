@@ -22,7 +22,9 @@ npm run db:generate -w server   # regenerate migrations after editing schema.ts
   - `ops.ts` — write path: op interpreter + derived-index upkeep
   - `queries.ts` — read path: returns payload types from `shared/`
   - `index.ts` — routes + WebSocket broadcast, no logic
-- `client/` — Vite + React 19 + Tailwind 4 (shadcn-style theme in `index.css`), zustand store, CodeMirror 6.
+- `client/` — Vite + React 19 + Tailwind 4 (design tokens in `index.css` — all colors/spacing come from there, never hardcode), zustand store, CodeMirror 6.
+  - `src/components/ui/` — vendored shadcn/ui components (excluded from eslint/jscpd/knip; edit freely but keep diffs against upstream minimal)
+  - `src/components/layout/` — `PageShell` + `ContentHeader`: every route renders inside this frame (breadcrumb crumbs + actions slot); don't reinvent page scaffolding
 
 ## The write model — every mutation is an Op
 
