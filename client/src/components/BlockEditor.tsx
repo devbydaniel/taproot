@@ -30,6 +30,8 @@ interface Props {
    * the source page is only partially loaded in the store
    */
   variant?: 'block' | 'title' | 'ref';
+  /** must match the store's focused.origin — see FocusTarget */
+  origin?: string;
   className?: string;
 }
 
@@ -105,6 +107,7 @@ export function BlockEditor({
   blockId,
   ctx,
   variant = 'block',
+  origin,
   className,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -318,6 +321,7 @@ export function BlockEditor({
                 const active = document.activeElement;
                 if (
                   state.focused?.blockId === blockId &&
+                  state.focused.origin === origin &&
                   !active?.closest('.cm-editor')
                 ) {
                   state.setFocus(null);
@@ -341,7 +345,8 @@ export function BlockEditor({
   // focus + cursor placement, re-applied whenever a new focus target is set
   useEffect(() => {
     const view = viewRef.current;
-    if (!view || focused?.blockId !== blockId) return;
+    if (!view || focused?.blockId !== blockId || focused.origin !== origin)
+      return;
     const length = view.state.doc.length;
     const anchor =
       focused.cursor === 'start'
@@ -351,7 +356,7 @@ export function BlockEditor({
           : Math.min(focused.cursor, length);
     view.focus();
     view.dispatch({ selection: { anchor } });
-  }, [focused, blockId]);
+  }, [focused, blockId, origin]);
 
   return (
     <div

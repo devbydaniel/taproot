@@ -5,6 +5,12 @@ interface FocusTarget {
   blockId: string;
   /** character offset in the raw text, or 'start' / 'end' */
   cursor: number | 'start' | 'end';
+  /**
+   * which rendering of the block owns the editor — a block can be on screen
+   * both in an outline and in a linked-references row, but only the instance
+   * whose origin matches mounts CodeMirror. Unset = the outline.
+   */
+  origin?: string;
 }
 
 interface OutlineState {

@@ -31,9 +31,7 @@ export function LinkedRefs({
           <RefGroupCard
             key={group.page.id}
             group={group}
-            // a self-referencing page is already editable in the outline
-            // above; a second editor for the same block would go stale
-            editable={group.page.id !== currentPageId}
+            hostPageId={currentPageId}
           />
         ))
       )}
@@ -41,14 +39,15 @@ export function LinkedRefs({
   );
 }
 
-/** One page's worth of outline; text is editable in place unless the source
- * page's outline is mounted in the same view. */
+/** One page's worth of outline; text is editable in place. */
 export function RefGroupCard({
   group,
-  editable = true,
+  hostPageId,
 }: {
   group: LinkedRefGroup;
-  editable?: boolean;
+  /** the page whose refs section this is — scopes the focus origin so the
+   * same block rendered elsewhere (outline, another day's refs) stays static */
+  hostPageId: string;
 }) {
   const byParent = useMemo(() => {
     const map = new Map<string, Block[]>();
@@ -69,6 +68,7 @@ export function RefGroupCard({
     .filter((block): block is Block => block !== undefined);
 
   const ctx: OutlineCtx = { pageId: group.page.id, rootParentId: null };
+  const origin = `refs:${hostPageId}`;
 
   return (
     <div className="mb-6 rounded-lg border bg-muted/30 px-4 py-3">
@@ -79,12 +79,7 @@ export function RefGroupCard({
             ancestors={group.ancestors[root.id] ?? []}
             className="mb-1 font-medium"
           />
-          <RefRow
-            block={root}
-            byParent={byParent}
-            ctx={ctx}
-            editable={editable}
-          />
+          <RefRow block={root} byParent={byParent} ctx={ctx} origin={origin} />
         </div>
       ))}
     </div>
@@ -95,12 +90,12 @@ function RefRow({
   block,
   byParent,
   ctx,
-  editable,
+  origin,
 }: {
   block: Block;
   byParent: Map<string, Block[]>;
   ctx: OutlineCtx;
-  editable: boolean;
+  origin: string;
 }) {
   // prefer the store's copy so checkbox toggles render immediately
   const live = useStore((s) => s.blocks[block.id]) ?? block;
@@ -115,8 +110,13 @@ function RefRow({
         >
           <span className="block h-[6px] w-[6px] rounded-full bg-muted-foreground/70" />
         </Link>
-        {editable && live.kind !== 'drawing' ? (
-          <EditableBlockText block={live} ctx={ctx} variant="ref" />
+        {live.kind !== 'drawing' ? (
+          <EditableBlockText
+            block={live}
+            ctx={ctx}
+            variant="ref"
+            origin={origin}
+          />
         ) : (
           <div className="min-w-0 flex-1 leading-6">
             <BlockContent block={live} />
@@ -131,7 +131,7 @@ function RefRow({
               block={child}
               byParent={byParent}
               ctx={ctx}
-              editable={editable}
+              origin={origin}
             />
           ))}
         </div>

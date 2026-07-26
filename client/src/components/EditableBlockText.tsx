@@ -15,12 +15,17 @@ export function EditableBlockText({
   block,
   ctx,
   variant = 'block',
+  origin,
 }: {
   block: Block;
   ctx: OutlineCtx;
   variant?: 'block' | 'ref';
+  /** distinguishes this rendering when the block is on screen twice (outline + refs) */
+  origin?: string;
 }) {
-  const isFocused = useStore((s) => s.focused?.blockId === block.id);
+  const isFocused = useStore(
+    (s) => s.focused?.blockId === block.id && s.focused.origin === origin,
+  );
   const setFocus = useStore((s) => s.setFocus);
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -41,7 +46,7 @@ export function EditableBlockText({
       if (rendered != null)
         cursor = renderedToRaw(visible, rendered) + prefixLength;
     }
-    setFocus({ blockId: block.id, cursor });
+    setFocus({ blockId: block.id, cursor, origin });
   };
 
   return (
@@ -51,7 +56,12 @@ export function EditableBlockText({
       onClick={isFocused ? undefined : focusAtPoint}
     >
       {isFocused ? (
-        <BlockEditor blockId={block.id} ctx={ctx} variant={variant} />
+        <BlockEditor
+          blockId={block.id}
+          ctx={ctx}
+          variant={variant}
+          origin={origin}
+        />
       ) : (
         <BlockContent block={block} />
       )}
