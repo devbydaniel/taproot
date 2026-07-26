@@ -76,6 +76,7 @@ const page = (id: string, title: string): Page => ({
   title,
   createdAt: 0,
   pinnedOrderKey: null,
+  pinnedFolderId: null,
 });
 
 function makeQueue(deps: {

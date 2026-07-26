@@ -5,7 +5,7 @@ import { AppSidebar } from '@/components/AppSidebar';
 import { CommandPalette } from '@/components/CommandPalette';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { api } from '@/lib/api';
-import { installPages } from '@/lib/offline/sync';
+import { installPages, installPinFolders } from '@/lib/offline/sync';
 import { startWs } from '@/lib/ws';
 import { JournalView } from '@/pages/JournalView';
 import { PagesView } from '@/pages/PagesView';
@@ -28,6 +28,7 @@ export function App() {
   // view; location is a dep so auto-created pages show up after navigation
   useEffect(() => {
     void api.listPages().then((list) => installPages(list));
+    void api.listPinFolders().then((list) => installPinFolders(list));
   }, [remoteEpoch, location]);
 
   return (

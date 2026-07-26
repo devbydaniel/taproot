@@ -4,8 +4,21 @@ export interface Page {
   id: string;
   title: string;
   createdAt: number;
-  /** fractional index among pinned pages; null = not pinned */
+  /** fractional index among its pinned siblings; null = not pinned */
   pinnedOrderKey: string | null;
+  /** pin folder the page sits in; null = unpinned or pinned at top level */
+  pinnedFolderId: string | null;
+}
+
+/** A folder in the pinned sidebar section. One level deep: folders hold pages, not folders. */
+export interface PinFolder {
+  id: string;
+  name: string;
+  /** fractional index shared with the top-level pages' pinnedOrderKey */
+  orderKey: string;
+  /** children hidden in the sidebar; persisted UI state, like Block.collapsed */
+  collapsed: boolean;
+  createdAt: number;
 }
 
 export type BlockKind = 'text' | 'drawing';

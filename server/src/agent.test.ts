@@ -20,7 +20,7 @@ import {
 } from './agentWrites.js';
 import { createApi } from './app.js';
 import { createStore, type Store } from './db.js';
-import { ensurePage } from './ops.js';
+import { applyOps, ensurePage } from './ops.js';
 import { getPagePayload, listPages } from './queries.js';
 
 let store: Store;
@@ -505,6 +505,37 @@ describe('overview, tasks, journal', () => {
     const journal = agentJournal(store, {});
     expect(journal.days.map((d) => d.date)).toEqual(['2026-07-12']);
     expect(texts(journal.days[0]?.blocks)).toEqual(['TODO review']);
+  });
+
+  it('reports the pinned sidebar, folders and all', () => {
+    const inFolder = ensurePage(store, 'Roadmap');
+    const loose = ensurePage(store, 'Inbox');
+    applyOps(store, [
+      { type: 'create_pin_folder', id: 'f1', name: 'Work', orderKey: 'a1' },
+      { type: 'set_page_pinned', id: loose.id, orderKey: 'a0' },
+      {
+        type: 'set_page_pinned',
+        id: inFolder.id,
+        orderKey: 'a0',
+        folderId: 'f1',
+      },
+    ]);
+
+    // interleaved: the loose page sorts above the folder on the shared keyspace
+    expect(agentOverview(store).pinned).toEqual([
+      { type: 'page', id: loose.id, label: 'Inbox' },
+      {
+        type: 'folder',
+        id: 'f1',
+        label: 'Work',
+        pages: [{ id: inFolder.id, title: 'Roadmap' }],
+      },
+    ]);
+
+    applyOps(store, [{ type: 'delete_pin_folder', id: 'f1' }]);
+    expect(agentOverview(store).pinned).toEqual([
+      { type: 'page', id: loose.id, label: 'Inbox' },
+    ]);
   });
 });
 

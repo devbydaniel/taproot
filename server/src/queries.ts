@@ -7,15 +7,24 @@ import {
   type LinkedRefGroup,
   type Page,
   type PagePayload,
+  type PinFolder,
   type TasksPayload,
   type ZoomPayload,
 } from '@taproot/shared';
 import { and, asc, desc, eq, gte, inArray, lt, sql } from 'drizzle-orm';
 import type { Store } from './db.js';
-import { blocks, pages, refs, tasks } from './schema.js';
+import { blocks, pages, pinFolders, refs, tasks } from './schema.js';
 
 export function listPages(store: Store) {
   return store.db.select().from(pages).orderBy(asc(pages.title)).all();
+}
+
+export function listPinFolders(store: Store): PinFolder[] {
+  return store.db
+    .select()
+    .from(pinFolders)
+    .orderBy(asc(pinFolders.orderKey))
+    .all();
 }
 
 function getPageBlocks(store: Store, pageId: string): Block[] {

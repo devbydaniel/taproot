@@ -7,12 +7,27 @@ import {
   text,
 } from 'drizzle-orm/sqlite-core';
 
+// folders in the pinned sidebar section; one level deep, they hold pages only
+export const pinFolders = sqliteTable('pin_folders', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  // fractional index shared with the top-level pages' pinned_order_key
+  orderKey: text('order_key').notNull(),
+  // children hidden in the sidebar; persisted UI state, like blocks.collapsed
+  collapsed: integer('collapsed', { mode: 'boolean' }).notNull().default(false),
+  createdAt: integer('created_at').notNull(),
+});
+
 export const pages = sqliteTable('pages', {
   id: text('id').primaryKey(),
   title: text('title').notNull().unique(),
   createdAt: integer('created_at').notNull(),
-  // fractional index among pinned pages; null = not pinned
+  // fractional index among its pinned siblings; null = not pinned
   pinnedOrderKey: text('pinned_order_key'),
+  // pin folder the page sits in; null = unpinned or pinned at top level.
+  // no ON DELETE action on purpose: delete_pin_folder unpins the pages inside
+  // first, so the FK fails loudly if that upkeep is ever skipped.
+  pinnedFolderId: text('pinned_folder_id').references(() => pinFolders.id),
 });
 
 export const blocks = sqliteTable(

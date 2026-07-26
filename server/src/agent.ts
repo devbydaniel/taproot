@@ -1,4 +1,5 @@
 import {
+  buildPinTree,
   isDailyTitle,
   suggestDailyTitles,
   todayTitle,
@@ -37,6 +38,7 @@ import {
   groupByPage,
   linkedRefGroups,
   listPages,
+  listPinFolders,
 } from './queries.js';
 import { blocks, pages, refs, tasks } from './schema.js';
 
@@ -172,14 +174,26 @@ export function agentOverview(
       .from(tasks)
       .where(eq(tasks.state, 'TODO'))
       .get()?.count ?? 0;
+  const allPages = listPages(store);
   return {
     today: todayTitle(now),
-    pages: listPages(store).map((page) => ({
+    pages: allPages.map((page) => ({
       id: page.id,
       title: page.title,
       blockCount: counts.get(page.id) ?? 0,
       pinned: page.pinnedOrderKey !== null,
     })),
+    // same builder the sidebar renders from, so the two views cannot drift
+    pinned: buildPinTree(allPages, listPinFolders(store)).map((node) =>
+      node.type === 'folder'
+        ? {
+            type: 'folder' as const,
+            id: node.folder.id,
+            label: node.folder.name,
+            pages: node.pages.map(pageRef),
+          }
+        : { type: 'page' as const, id: node.page.id, label: node.page.title },
+    ),
     openTasks,
   };
 }

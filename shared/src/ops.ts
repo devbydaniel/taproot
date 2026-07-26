@@ -64,12 +64,64 @@ export const opSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('set_page_pinned'),
     id,
-    // fractional index among pinned pages; null = unpin
+    // fractional index among its pinned siblings; null = unpin
     orderKey: z.string().min(1).nullable(),
+    // pin folder to sit in; null/absent = top level. Optional so ops queued
+    // offline before folders existed still validate; absent reads as null.
+    folderId: id.nullable().optional(),
+  }),
+  z.object({
+    type: z.literal('create_pin_folder'),
+    id,
+    name: z.string().min(1),
+    // fractional index shared with the top-level pages' pinned order keys
+    orderKey: z.string().min(1),
+  }),
+  z.object({
+    type: z.literal('rename_pin_folder'),
+    id,
+    name: z.string().min(1),
+  }),
+  z.object({
+    type: z.literal('move_pin_folder'),
+    id,
+    orderKey: z.string().min(1),
+  }),
+  z.object({
+    type: z.literal('set_pin_folder_collapsed'),
+    id,
+    collapsed: z.boolean(),
+  }),
+  z.object({
+    // unpins the pages inside; the folder is not a container for content
+    type: z.literal('delete_pin_folder'),
+    id,
   }),
 ]);
 
 export type Op = z.infer<typeof opSchema>;
+
+/**
+ * The ops that touch only the pinned sidebar's folders. Interpreters branch on
+ * this once and hand the group to a dedicated exhaustive switch, instead of
+ * carrying five extra cases through the block/page reducers.
+ */
+export const PIN_FOLDER_OP_TYPES = [
+  'create_pin_folder',
+  'rename_pin_folder',
+  'move_pin_folder',
+  'set_pin_folder_collapsed',
+  'delete_pin_folder',
+] as const;
+
+export type PinFolderOp = Extract<
+  Op,
+  { type: (typeof PIN_FOLDER_OP_TYPES)[number] }
+>;
+
+export function isPinFolderOp(op: Op): op is PinFolderOp {
+  return (PIN_FOLDER_OP_TYPES as readonly string[]).includes(op.type);
+}
 
 export const opsRequestSchema = z.object({
   clientId: z.string().min(1),

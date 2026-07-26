@@ -1,4 +1,4 @@
-import type { Op } from '@taproot/shared';
+import { opsRequestSchema, type Op } from '@taproot/shared';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createStore, type Store } from './db.js';
 import { applyOps, ensurePage, reindexTasks } from './ops.js';
@@ -9,6 +9,7 @@ import {
   getTaskList,
   getZoomPayload,
   listPages,
+  listPinFolders,
 } from './queries.js';
 
 let store: Store;
@@ -759,6 +760,157 @@ describe('page pinning', () => {
     setupPage('Fresh');
     const row = listPages(store).find((p) => p.title === 'Fresh');
     expect(row?.pinnedOrderKey).toBeNull();
+  });
+});
+
+describe('pin folders', () => {
+  const pageRow = (id: string) => listPages(store).find((p) => p.id === id);
+
+  function setupFolder(id = 'f1', name = 'Work', orderKey = 'a0') {
+    applyOps(store, [{ type: 'create_pin_folder', id, name, orderKey }]);
+    return id;
+  }
+
+  it('creates a folder, expanded by default', () => {
+    setupFolder();
+    const folders = listPinFolders(store);
+    expect(folders).toHaveLength(1);
+    expect(folders[0]).toMatchObject({
+      id: 'f1',
+      name: 'Work',
+      orderKey: 'a0',
+      collapsed: false,
+    });
+    expect(folders[0]?.createdAt).toBeGreaterThan(0);
+  });
+
+  it('lists folders by order key', () => {
+    setupFolder('f2', 'Second', 'a1');
+    setupFolder('f1', 'First', 'a0');
+    expect(listPinFolders(store).map((f) => f.id)).toEqual(['f1', 'f2']);
+  });
+
+  it('creating the same folder twice is idempotent (offline replay)', () => {
+    setupFolder();
+    applyOps(store, [
+      { type: 'create_pin_folder', id: 'f1', name: 'Other', orderKey: 'a5' },
+    ]);
+    expect(listPinFolders(store)).toHaveLength(1);
+    expect(listPinFolders(store)[0]?.name).toBe('Work');
+  });
+
+  it('renames, moves and collapses a folder', () => {
+    setupFolder();
+    applyOps(store, [
+      { type: 'rename_pin_folder', id: 'f1', name: 'Renamed' },
+      { type: 'move_pin_folder', id: 'f1', orderKey: 'a9' },
+      { type: 'set_pin_folder_collapsed', id: 'f1', collapsed: true },
+    ]);
+    expect(listPinFolders(store)[0]).toMatchObject({
+      name: 'Renamed',
+      orderKey: 'a9',
+      collapsed: true,
+    });
+  });
+
+  it('puts a page in a folder and takes it back out', () => {
+    const folder = setupFolder();
+    const page = setupPage('Roadmap');
+    applyOps(store, [
+      {
+        type: 'set_page_pinned',
+        id: page.id,
+        orderKey: 'a0',
+        folderId: folder,
+      },
+    ]);
+    expect(pageRow(page.id)).toMatchObject({
+      pinnedOrderKey: 'a0',
+      pinnedFolderId: 'f1',
+    });
+
+    applyOps(store, [
+      { type: 'set_page_pinned', id: page.id, orderKey: 'a1', folderId: null },
+    ]);
+    expect(pageRow(page.id)).toMatchObject({
+      pinnedOrderKey: 'a1',
+      pinnedFolderId: null,
+    });
+  });
+
+  it('unpinning clears the folder too', () => {
+    const folder = setupFolder();
+    const page = setupPage('Roadmap');
+    applyOps(store, [
+      {
+        type: 'set_page_pinned',
+        id: page.id,
+        orderKey: 'a0',
+        folderId: folder,
+      },
+      // an unpin op carries no folder; the page must not keep a stale one
+      { type: 'set_page_pinned', id: page.id, orderKey: null },
+    ]);
+    expect(pageRow(page.id)).toMatchObject({
+      pinnedOrderKey: null,
+      pinnedFolderId: null,
+    });
+  });
+
+  it('accepts set_page_pinned without folderId (ops queued before folders)', () => {
+    const page = setupPage('Roadmap');
+    const parsed = opsRequestSchema.safeParse({
+      clientId: 'c1',
+      ops: [{ type: 'set_page_pinned', id: page.id, orderKey: 'a0' }],
+    });
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+
+    applyOps(store, parsed.data.ops);
+    expect(pageRow(page.id)).toMatchObject({
+      pinnedOrderKey: 'a0',
+      pinnedFolderId: null,
+    });
+  });
+
+  it('deleting a folder unpins the pages inside it', () => {
+    const folder = setupFolder();
+    const inside = setupPage('Roadmap');
+    const outside = setupPage('Inbox');
+    applyOps(store, [
+      {
+        type: 'set_page_pinned',
+        id: inside.id,
+        orderKey: 'a0',
+        folderId: folder,
+      },
+      { type: 'set_page_pinned', id: outside.id, orderKey: 'a1' },
+      { type: 'delete_pin_folder', id: folder },
+    ]);
+
+    expect(listPinFolders(store)).toEqual([]);
+    expect(pageRow(inside.id)).toMatchObject({
+      pinnedOrderKey: null,
+      pinnedFolderId: null,
+    });
+    // the page itself survives, and pins outside the folder are untouched
+    expect(pageRow(inside.id)?.title).toBe('Roadmap');
+    expect(pageRow(outside.id)?.pinnedOrderKey).toBe('a1');
+  });
+
+  it('is a silent no-op for unknown folder ids', () => {
+    setupFolder();
+    applyOps(store, [
+      { type: 'rename_pin_folder', id: 'nope', name: 'Ghost' },
+      { type: 'move_pin_folder', id: 'nope', orderKey: 'a9' },
+      { type: 'set_pin_folder_collapsed', id: 'nope', collapsed: true },
+      { type: 'delete_pin_folder', id: 'nope' },
+    ]);
+    expect(listPinFolders(store)[0]).toMatchObject({
+      name: 'Work',
+      orderKey: 'a0',
+      collapsed: false,
+    });
   });
 });
 

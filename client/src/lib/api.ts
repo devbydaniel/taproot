@@ -1,5 +1,5 @@
 import type { ApiType } from '@taproot/server';
-import type { Op, Page } from '@taproot/shared';
+import type { Op, Page, PinFolder } from '@taproot/shared';
 import { hc } from 'hono/client';
 import { nanoid } from 'nanoid';
 import { cachePut, cacheGet } from '@/lib/offline/db';
@@ -67,6 +67,10 @@ export function listPagesUncached(): Promise<Page[]> {
 
 export const api = {
   listPages: () => cachedFetch('pages', listPagesUncached),
+  listPinFolders: () =>
+    cachedFetch<PinFolder[]>('pin-folders', () =>
+      unwrap(client['pin-folders'].$get()),
+    ),
   /**
    * The server auto-creates the page (ensurePage); offline, fall back to the
    * cached page and then to creating it locally via the op queue.

@@ -1,4 +1,3 @@
-import { arrayMove } from '@dnd-kit/sortable';
 import {
   advanceRecurringTask,
   parseTask,
@@ -15,6 +14,7 @@ import {
   visibleOrder,
   type OutlineCtx,
 } from '@/lib/outline';
+import { appendPinKey, resolvePinDrop } from '@/lib/pinTree';
 import { useStore } from '@/store';
 
 /** apply ops optimistically and queue them for the server */
@@ -102,38 +102,81 @@ export function toggleTaskCheckbox(blockId: string) {
   dispatch(ops);
 }
 
-/** Pin appends at the end of the pinned list; unpin clears the key. */
+/** Pin appends at the end of the top level; unpin clears the key and the folder. */
 export function togglePagePinned(pageId: string) {
-  const { pages } = useStore.getState();
+  const { pages, pinFolders } = useStore.getState();
   const page = pages.find((p) => p.id === pageId);
   if (!page) return;
   if (page.pinnedOrderKey !== null) {
     dispatch([{ type: 'set_page_pinned', id: pageId, orderKey: null }]);
     return;
   }
-  const keys = pages
-    .map((p) => p.pinnedOrderKey)
-    .filter((k): k is string => k !== null)
-    .sort();
-  const orderKey = generateKeyBetween(keys[keys.length - 1] ?? null, null);
-  dispatch([{ type: 'set_page_pinned', id: pageId, orderKey }]);
+  dispatch([
+    {
+      type: 'set_page_pinned',
+      id: pageId,
+      orderKey: appendPinKey(pages, pinFolders, null),
+      folderId: null,
+    },
+  ]);
 }
 
-/** Drag reorder: move a pinned page so it lands at `targetIndex` in the pinned list. */
-export function movePinnedPage(pageId: string, targetIndex: number) {
-  const { pages } = useStore.getState();
-  const pinned = pages
-    .filter((p) => p.pinnedOrderKey !== null)
-    .sort((a, b) => (a.pinnedOrderKey! < b.pinnedOrderKey! ? -1 : 1));
-  const from = pinned.findIndex((p) => p.id === pageId);
-  if (from === -1 || from === targetIndex) return;
-  const moved = arrayMove(pinned, from, targetIndex);
-  const i = moved.findIndex((p) => p.id === pageId);
-  const orderKey = generateKeyBetween(
-    moved[i - 1]?.pinnedOrderKey ?? null,
-    moved[i + 1]?.pinnedOrderKey ?? null,
-  );
-  dispatch([{ type: 'set_page_pinned', id: pageId, orderKey }]);
+/** Drag reorder inside the pinned tree: `overId` is the row the drag ended on. */
+export function movePinnedItem(activeId: string, overId: string) {
+  const { pages, pinFolders } = useStore.getState();
+  const ops = resolvePinDrop(pages, pinFolders, activeId, overId);
+  if (ops.length > 0) dispatch(ops);
+}
+
+/** Menu counterpart of dragging into a folder; `folderId` null moves back to top level. */
+export function movePageToPinFolder(pageId: string, folderId: string | null) {
+  const { pages, pinFolders } = useStore.getState();
+  const page = pages.find((p) => p.id === pageId);
+  if (!page || page.pinnedOrderKey === null) return;
+  if ((page.pinnedFolderId ?? null) === folderId) return;
+  dispatch([
+    {
+      type: 'set_page_pinned',
+      id: pageId,
+      orderKey: appendPinKey(pages, pinFolders, folderId),
+      folderId,
+    },
+  ]);
+}
+
+// --- pin folders ---
+
+/** Creates an empty folder at the end of the pinned section; returns its id. */
+export function createPinFolder(name: string): string {
+  const { pages, pinFolders } = useStore.getState();
+  const id = nanoid();
+  dispatch([
+    {
+      type: 'create_pin_folder',
+      id,
+      name,
+      orderKey: appendPinKey(pages, pinFolders, null),
+    },
+  ]);
+  return id;
+}
+
+export function renamePinFolder(folderId: string, name: string) {
+  const trimmed = name.trim();
+  const folder = useStore.getState().pinFolders.find((f) => f.id === folderId);
+  if (!folder || !trimmed || folder.name === trimmed) return;
+  dispatch([{ type: 'rename_pin_folder', id: folderId, name: trimmed }]);
+}
+
+/** Unpins the pages inside; the folder holds no content of its own. */
+export function deletePinFolder(folderId: string) {
+  dispatch([{ type: 'delete_pin_folder', id: folderId }]);
+}
+
+export function setPinFolderCollapsed(folderId: string, collapsed: boolean) {
+  const folder = useStore.getState().pinFolders.find((f) => f.id === folderId);
+  if (!folder || folder.collapsed === collapsed) return;
+  dispatch([{ type: 'set_pin_folder_collapsed', id: folderId, collapsed }]);
 }
 
 /** Chevron click / Mod-ArrowUp / Mod-ArrowDown: hide or show a block's children. */

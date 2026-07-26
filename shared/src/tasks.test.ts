@@ -99,7 +99,13 @@ describe('bucketTasks', () => {
         createdAt,
         updatedAt: createdAt,
       },
-      page: { id: 'p1', title: 'Page', createdAt: 0, pinnedOrderKey: null },
+      page: {
+        id: 'p1',
+        title: 'Page',
+        createdAt: 0,
+        pinnedOrderKey: null,
+        pinnedFolderId: null,
+      },
       dueDate: taskDueDate(text),
       hasPageLink: taskHasPageLink(text),
     };

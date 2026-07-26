@@ -127,6 +127,21 @@ export const agentOverviewSchema = z
         }),
       )
       .describe('Every page in the graph, alphabetical by title'),
+    pinned: z
+      .array(
+        z.object({
+          type: z.enum(['page', 'folder']),
+          id: z.string(),
+          label: z.string().describe('Page title, or folder name'),
+          pages: z
+            .array(pageRefSchema)
+            .optional()
+            .describe('Folders only: the pages inside, in sidebar order'),
+        }),
+      )
+      .describe(
+        'The pinned sidebar in display order; folders are one level deep',
+      ),
     openTasks: z.number().describe('Number of open TODO blocks in the graph'),
   })
   .openapi('Overview');

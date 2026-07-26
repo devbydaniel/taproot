@@ -1,4 +1,4 @@
-import type { Block, Op, Page } from '@taproot/shared';
+import type { Block, Op, Page, PinFolder } from '@taproot/shared';
 import { nanoid } from 'nanoid';
 import { useStore } from '@/store';
 import { cacheDelete, cachePut, createIdbQueueStorage } from './db';
@@ -175,6 +175,13 @@ export function installPages(pages: Page[]) {
   store.applyOps(overlayOps());
 }
 
+/** same for the pinned sidebar's folders */
+export function installPinFolders(folders: PinFolder[]) {
+  const store = useStore.getState();
+  store.setPinFolders(folders);
+  store.applyOps(overlayOps());
+}
+
 // --- offline page creation ---
 
 /**
@@ -191,6 +198,7 @@ export async function ensurePageOffline(title: string): Promise<Page> {
     title,
     createdAt: Date.now(),
     pinnedOrderKey: null,
+    pinnedFolderId: null,
   };
   const op: Op = { type: 'create_page', id: page.id, title };
   useStore.getState().applyOps([op]);

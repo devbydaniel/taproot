@@ -9,6 +9,7 @@ import {
   getTaskList,
   getZoomPayload,
   listPages,
+  listPinFolders,
 } from './queries.js';
 
 // routes must stay chained on one expression: hc<ApiType> infers the client
@@ -19,6 +20,7 @@ export function createApi(
 ) {
   return new Hono()
     .get('/pages', (c) => c.json(listPages(store), 200))
+    .get('/pin-folders', (c) => c.json(listPinFolders(store), 200))
     .get('/tasks', (c) => c.json(getTaskList(store), 200))
     .get('/pages/by-title/:title', (c) => {
       const title = c.req.param('title').trim();

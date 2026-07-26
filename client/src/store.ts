@@ -1,4 +1,11 @@
-import type { Block, Op, Page } from '@taproot/shared';
+import {
+  isPinFolderOp,
+  type Block,
+  type Op,
+  type Page,
+  type PinFolder,
+  type PinFolderOp,
+} from '@taproot/shared';
 import { create } from 'zustand';
 
 interface FocusTarget {
@@ -15,6 +22,8 @@ interface FocusTarget {
 
 interface OutlineState {
   pages: Page[];
+  /** folders in the pinned sidebar section */
+  pinFolders: PinFolder[];
   blocks: Record<string, Block>;
   focused: FocusTarget | null;
   /** drawing block whose fullscreen editor is open, if any */
@@ -26,6 +35,7 @@ interface OutlineState {
   /** queued write batches not yet confirmed by the server */
   pendingCount: number;
   setPages: (pages: Page[]) => void;
+  setPinFolders: (folders: PinFolder[]) => void;
   /** replace the loaded blocks of one page with a fresh server snapshot */
   loadPageBlocks: (pageId: string, blocks: Block[]) => void;
   mergeBlocks: (blocks: Block[]) => void;
@@ -91,6 +101,7 @@ function applyOpToBlocks(
   blocks: Record<string, Block>,
   op: Op,
 ): Record<string, Block> {
+  if (isPinFolderOp(op)) return blocks;
   switch (op.type) {
     case 'create_page':
     case 'set_page_pinned':
@@ -159,7 +170,22 @@ function applyOpToBlocks(
 function applyOpToPages(pages: Page[], op: Op): Page[] {
   if (op.type === 'set_page_pinned') {
     return pages.map((page) =>
-      page.id === op.id ? { ...page, pinnedOrderKey: op.orderKey } : page,
+      page.id === op.id
+        ? {
+            ...page,
+            pinnedOrderKey: op.orderKey,
+            // unpinning clears the folder too; absent folderId means top level
+            pinnedFolderId: op.orderKey === null ? null : (op.folderId ?? null),
+          }
+        : page,
+    );
+  }
+  if (op.type === 'delete_pin_folder') {
+    // mirror the server: the pages inside are unpinned, not deleted
+    return pages.map((page) =>
+      page.pinnedFolderId === op.id
+        ? { ...page, pinnedOrderKey: null, pinnedFolderId: null }
+        : page,
     );
   }
   if (op.type === 'create_page') {
@@ -172,14 +198,55 @@ function applyOpToPages(pages: Page[], op: Op): Page[] {
         title: op.title,
         createdAt: Date.now(),
         pinnedOrderKey: null,
+        pinnedFolderId: null,
       },
     ];
   }
   return pages;
 }
 
+/** Pin-folder counterpart of applyOpToPages, over the folder ops only. */
+function applyOpToPinFolders(
+  folders: PinFolder[],
+  op: PinFolderOp,
+): PinFolder[] {
+  switch (op.type) {
+    case 'create_pin_folder':
+      // idempotent like the server insert: the offline queue replays ops
+      if (folders.some((folder) => folder.id === op.id)) return folders;
+      return [
+        ...folders,
+        {
+          id: op.id,
+          name: op.name,
+          orderKey: op.orderKey,
+          collapsed: false,
+          createdAt: Date.now(),
+        },
+      ];
+    case 'rename_pin_folder':
+      return folders.map((folder) =>
+        folder.id === op.id ? { ...folder, name: op.name } : folder,
+      );
+    case 'move_pin_folder':
+      return folders.map((folder) =>
+        folder.id === op.id ? { ...folder, orderKey: op.orderKey } : folder,
+      );
+    case 'set_pin_folder_collapsed':
+      return folders.map((folder) =>
+        folder.id === op.id ? { ...folder, collapsed: op.collapsed } : folder,
+      );
+    case 'delete_pin_folder':
+      return folders.filter((folder) => folder.id !== op.id);
+    default:
+      op satisfies never;
+      return folders;
+  }
+}
+
 export const useStore = create<OutlineState>((set) => ({
   pages: [],
+  pinFolders: [],
   blocks: {},
   focused: null,
   openDrawingId: null,
@@ -187,6 +254,7 @@ export const useStore = create<OutlineState>((set) => ({
   connectivity: 'online',
   pendingCount: 0,
   setPages: (pages) => set({ pages }),
+  setPinFolders: (pinFolders) => set({ pinFolders }),
   loadPageBlocks: (pageId, incoming) =>
     set((state) => {
       const next: Record<string, Block> = {};
@@ -206,9 +274,13 @@ export const useStore = create<OutlineState>((set) => ({
     set((state) => {
       let blocks = state.blocks;
       let pages = state.pages;
+      let pinFolders = state.pinFolders;
       for (const op of ops) {
         blocks = applyOpToBlocks(blocks, op);
         pages = applyOpToPages(pages, op);
+        if (isPinFolderOp(op)) {
+          pinFolders = applyOpToPinFolders(pinFolders, op);
+        }
       }
       // a collapse that hides the focused block moves focus to the collapsed
       // ancestor (Roam behavior); covers both local and remote collapses
@@ -218,7 +290,7 @@ export const useStore = create<OutlineState>((set) => ({
         if (isStrictDescendant(blocks, focused.blockId, op.id))
           focused = { blockId: op.id, cursor: 'end' };
       }
-      return { blocks, pages, focused };
+      return { blocks, pages, pinFolders, focused };
     }),
   bumpRemoteEpoch: () =>
     set((state) => ({ remoteEpoch: state.remoteEpoch + 1 })),

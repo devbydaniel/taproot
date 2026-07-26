@@ -1,14 +1,16 @@
 import {
   extractWikilinks,
+  isPinFolderOp,
   parseTask,
   type Op,
   type Page,
+  type PinFolderOp,
   type TaskState,
 } from '@taproot/shared';
 import { eq } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import type { Store } from './db.js';
-import { blocks, pages, refs, tasks } from './schema.js';
+import { blocks, pages, pinFolders, refs, tasks } from './schema.js';
 
 export function ensurePage(store: Store, title: string): Page {
   const existing = store.db
@@ -22,6 +24,7 @@ export function ensurePage(store: Store, title: string): Page {
     title,
     createdAt: Date.now(),
     pinnedOrderKey: null,
+    pinnedFolderId: null,
   };
   store.db.insert(pages).values(page).run();
   return page;
@@ -139,8 +142,72 @@ function wouldCreateCycle(
   return false;
 }
 
+function applyPinFolderOp(store: Store, op: PinFolderOp) {
+  switch (op.type) {
+    case 'create_pin_folder': {
+      // the offline queue replays ops, so creation must be idempotent
+      store.db
+        .insert(pinFolders)
+        .values({
+          id: op.id,
+          name: op.name,
+          orderKey: op.orderKey,
+          collapsed: false,
+          createdAt: Date.now(),
+        })
+        .onConflictDoNothing()
+        .run();
+      break;
+    }
+    case 'rename_pin_folder': {
+      store.db
+        .update(pinFolders)
+        .set({ name: op.name })
+        .where(eq(pinFolders.id, op.id))
+        .run();
+      break;
+    }
+    case 'move_pin_folder': {
+      store.db
+        .update(pinFolders)
+        .set({ orderKey: op.orderKey })
+        .where(eq(pinFolders.id, op.id))
+        .run();
+      break;
+    }
+    case 'set_pin_folder_collapsed': {
+      store.db
+        .update(pinFolders)
+        .set({ collapsed: op.collapsed })
+        .where(eq(pinFolders.id, op.id))
+        .run();
+      break;
+    }
+    case 'delete_pin_folder': {
+      // a folder holds no content: its pages are unpinned, not deleted. This
+      // has to run first — the FK on pages.pinned_folder_id has no ON DELETE
+      // action, so a leftover reference would abort the transaction.
+      store.db
+        .update(pages)
+        .set({ pinnedOrderKey: null, pinnedFolderId: null })
+        .where(eq(pages.pinnedFolderId, op.id))
+        .run();
+      store.db.delete(pinFolders).where(eq(pinFolders.id, op.id)).run();
+      break;
+    }
+    default: {
+      op satisfies never;
+      break;
+    }
+  }
+}
+
 function applyOp(store: Store, op: Op) {
   const now = Date.now();
+  if (isPinFolderOp(op)) {
+    applyPinFolderOp(store, op);
+    return;
+  }
   switch (op.type) {
     case 'create_page': {
       store.db
@@ -228,7 +295,12 @@ function applyOp(store: Store, op: Op) {
     case 'set_page_pinned': {
       store.db
         .update(pages)
-        .set({ pinnedOrderKey: op.orderKey })
+        .set({
+          pinnedOrderKey: op.orderKey,
+          // an unpinned page never keeps a stale folder; absent folderId
+          // (ops queued before folders existed) means top level
+          pinnedFolderId: op.orderKey === null ? null : (op.folderId ?? null),
+        })
         .where(eq(pages.id, op.id))
         .run();
       break;

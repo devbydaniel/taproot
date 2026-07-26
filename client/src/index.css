@@ -118,6 +118,8 @@
   --spacing-outline-guide: 7px;
   --spacing-bullet-dot: 6px;
   --spacing-bullet-dot-lg: 7px;
+  /* indent of a page nested under a folder in the pinned sidebar section */
+  --spacing-pin-indent: 18px;
 }
 
 @layer base {
