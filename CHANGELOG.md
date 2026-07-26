@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.12.0...taproot-v0.13.0) (2026-07-26)
+
+
+### Features
+
+* group pinned pages into folders ([b10a517](https://github.com/devbydaniel/taproot/commit/b10a51731e66f7c3fb60442798ddff1aab0378a4))
+
 ## [0.12.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.11.0...taproot-v0.12.0) (2026-07-26)
 
 
