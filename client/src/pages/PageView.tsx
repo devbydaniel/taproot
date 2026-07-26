@@ -140,35 +140,38 @@ function DailyNav({ title }: { title: string }) {
     void api.pageByTitle(target).then((page) => navigate(`/p/${page.id}`));
   };
 
-  const navButton =
-    'flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground';
-
   return (
     <div className="mb-6 flex items-center gap-1">
       <span className="mr-2 text-sm text-muted-foreground">
         {dailyLabel(title)}
       </span>
-      <button
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-6 text-muted-foreground hover:text-foreground"
         onClick={() => goTo(shiftDailyTitle(title, -1))}
         title="Previous day"
-        className={navButton}
       >
-        <ChevronLeft className="h-4 w-4" />
-      </button>
-      <button
+        <ChevronLeft />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-6 text-muted-foreground hover:text-foreground"
         onClick={() => goTo(shiftDailyTitle(title, 1))}
         title="Next day"
-        className={navButton}
       >
-        <ChevronRight className="h-4 w-4" />
-      </button>
+        <ChevronRight />
+      </Button>
       {title !== todayTitle() && (
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 px-2 text-muted-foreground hover:text-foreground"
           onClick={() => goTo(todayTitle())}
-          className="rounded-md px-2 py-0.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
           Today
-        </button>
+        </Button>
       )}
     </div>
   );

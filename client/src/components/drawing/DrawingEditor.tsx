@@ -9,6 +9,7 @@ import type { AppState, BinaryFiles } from '@excalidraw/excalidraw/types';
 import type { Block } from '@taproot/shared';
 import { useEffect, useRef, useState } from 'react';
 import * as actions from '@/actions';
+import { Button } from '@/components/ui/button';
 import { parseScene } from '@/lib/excalidraw';
 import { useTheme } from '@/lib/theme';
 import { useStore } from '@/store';
@@ -89,12 +90,9 @@ export default function DrawingEditor({ block }: { block: Block }) {
         <span className="text-sm font-medium text-muted-foreground">
           Drawing
         </span>
-        <button
-          onClick={close}
-          className="rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-        >
+        <Button size="sm" onClick={close}>
           Done
-        </button>
+        </Button>
       </div>
       <div className="min-h-0 flex-1">
         <Excalidraw

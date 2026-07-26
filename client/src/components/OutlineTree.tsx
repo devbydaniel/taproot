@@ -1,9 +1,9 @@
 import type { Block } from '@taproot/shared';
 import { ChevronRight } from 'lucide-react';
-import { Link } from 'wouter';
 import { setCollapsed } from '@/actions';
 import { childrenOf, type OutlineCtx } from '@/lib/outline';
 import { useStore } from '@/store';
+import { BulletLink } from './Bullet';
 import { DrawingBlock } from './drawing/DrawingBlock';
 import { EditableBlockText } from './EditableBlockText';
 
@@ -47,20 +47,11 @@ function BlockRow({ block, ctx }: { block: Block; ctx: OutlineCtx }) {
             />
           </button>
         )}
-        <Link
+        <BulletLink
           href={`/b/${block.id}`}
           title="Zoom in"
-          className="mt-[5px] flex h-4 w-4 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-accent"
-        >
-          <span
-            className={
-              'block rounded-full bg-muted-foreground/70 transition-all group-hover:bg-foreground/80 ' +
-              (hasKids && block.collapsed
-                ? 'h-[7px] w-[7px] ring-3 ring-muted'
-                : 'h-[6px] w-[6px]')
-            }
-          />
-        </Link>
+          collapsed={hasKids && block.collapsed}
+        />
         {block.kind === 'drawing' ? (
           <div className="min-w-0 flex-1 leading-6">
             <DrawingBlock block={block} ctx={ctx} />
@@ -70,7 +61,7 @@ function BlockRow({ block, ctx }: { block: Block; ctx: OutlineCtx }) {
         )}
       </div>
       {hasKids && !block.collapsed && (
-        <div className="ml-[7px] border-l border-border pl-[23px]">
+        <div className="ml-outline-guide border-l border-border pl-outline-indent">
           <OutlineTree parentId={block.id} ctx={ctx} />
         </div>
       )}

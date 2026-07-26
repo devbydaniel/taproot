@@ -1,23 +1,33 @@
 import { useHotkey } from '@tanstack/react-hotkeys';
-import { Command } from 'cmdk';
 import { FileText, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useLocation } from 'wouter';
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
 import { api } from '@/lib/api';
 import { setPaletteOpen, usePaletteOpen } from '@/lib/palette';
 import { useStore } from '@/store';
 
 export function CommandPalette() {
   const open = usePaletteOpen();
-  const onOpenChange = setPaletteOpen;
   const [query, setQuery] = useState('');
   const pages = useStore((s) => s.pages);
   const [, navigate] = useLocation();
 
   useHotkey('Mod+K', () => {
     setQuery('');
-    onOpenChange(!open);
+    setPaletteOpen(!open);
   });
+
+  const onOpenChange = (next: boolean) => {
+    setPaletteOpen(next);
+    if (!next) setQuery('');
+  };
 
   const go = (id: string) => {
     onOpenChange(false);
@@ -34,56 +44,44 @@ export function CommandPalette() {
     trimmed !== '' &&
     !pages.some((p) => p.title.toLowerCase() === trimmed.toLowerCase());
 
-  const itemClass =
-    'flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-sm data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground';
-
   return (
-    <Command.Dialog
+    <CommandDialog
       open={open}
-      onOpenChange={(next) => {
-        onOpenChange(next);
-        if (!next) setQuery('');
-      }}
-      label="Search pages"
-      overlayClassName="fixed inset-0 z-50 bg-black/40"
-      contentClassName="fixed top-[20%] left-1/2 z-50 w-full max-w-md -translate-x-1/2 px-4"
+      onOpenChange={onOpenChange}
+      title="Search pages"
+      description="Search pages by title or create a new one"
+      showCloseButton={false}
+      // pin near the top so the dialog doesn't jump as the list filters
+      className="top-[20%] translate-y-0"
     >
-      <div className="overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-lg">
-        <Command.Input
-          value={query}
-          onValueChange={setQuery}
-          autoFocus
-          placeholder="Search pages…"
-          className="h-11 w-full border-b bg-transparent px-4 text-sm outline-none placeholder:text-muted-foreground"
-        />
-        <Command.List className="max-h-80 overflow-y-auto p-1">
-          <Command.Empty className="px-3 py-6 text-center text-sm text-muted-foreground">
-            No results.
-          </Command.Empty>
-          {pages.map((page) => (
-            <Command.Item
-              key={page.id}
-              value={page.title}
-              onSelect={() => go(page.id)}
-              className={itemClass}
-            >
-              <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <span className="truncate">{page.title}</span>
-            </Command.Item>
-          ))}
-          {showCreate && (
-            <Command.Item
-              forceMount
-              value={`create:${trimmed}`}
-              onSelect={() => void createAndGo()}
-              className={itemClass}
-            >
-              <Plus className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <span className="truncate">Create page “{trimmed}”</span>
-            </Command.Item>
-          )}
-        </Command.List>
-      </div>
-    </Command.Dialog>
+      <CommandInput
+        value={query}
+        onValueChange={setQuery}
+        placeholder="Search pages…"
+      />
+      <CommandList>
+        <CommandEmpty>No results.</CommandEmpty>
+        {pages.map((page) => (
+          <CommandItem
+            key={page.id}
+            value={page.title}
+            onSelect={() => go(page.id)}
+          >
+            <FileText className="text-muted-foreground" />
+            <span className="truncate">{page.title}</span>
+          </CommandItem>
+        ))}
+        {showCreate && (
+          <CommandItem
+            forceMount
+            value={`create:${trimmed}`}
+            onSelect={() => void createAndGo()}
+          >
+            <Plus className="text-muted-foreground" />
+            <span className="truncate">Create page “{trimmed}”</span>
+          </CommandItem>
+        )}
+      </CommandList>
+    </CommandDialog>
   );
 }

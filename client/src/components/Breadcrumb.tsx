@@ -20,7 +20,7 @@ export function renderedPreview(block: Block, max = 40): string {
 }
 
 /** Page › ancestor › ancestor trail; the page links to /p/:id, ancestors zoom to /b/:id. */
-export function Breadcrumb({
+export function RefBreadcrumb({
   page,
   ancestors,
   className,

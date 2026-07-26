@@ -7,6 +7,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'wouter';
 import { BlockContent } from '@/components/BlockContent';
+import { BulletLink } from '@/components/Bullet';
 import { PageShell } from '@/components/layout/PageShell';
 import { api } from '@/lib/api';
 import { installMergedBlocks } from '@/lib/offline/sync';
@@ -93,13 +94,7 @@ function TaskRow({ item, showAge }: { item: TaskListItem; showAge: boolean }) {
   const age = showAge ? ageLabel(live.createdAt) : null;
   return (
     <div className="flex items-start gap-1.5 py-[3px]">
-      <Link
-        href={`/b/${item.block.id}`}
-        title="Zoom to block"
-        className="mt-[5px] flex h-4 w-4 shrink-0 items-center justify-center rounded-full hover:bg-accent"
-      >
-        <span className="block h-[6px] w-[6px] rounded-full bg-muted-foreground/70" />
-      </Link>
+      <BulletLink href={`/b/${item.block.id}`} />
       <div className="min-w-0 flex-1 leading-6">
         <BlockContent block={live} />
         {age && (

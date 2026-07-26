@@ -5,6 +5,7 @@ import * as actions from '@/actions';
 import { PageShell } from '@/components/layout/PageShell';
 import { RefGroupCard } from '@/components/LinkedRefs';
 import { OutlineTree } from '@/components/OutlineTree';
+import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api';
 import { installMergedBlocks, installPageSnapshot } from '@/lib/offline/sync';
 import { visibleOrder, type OutlineCtx } from '@/lib/outline';
@@ -81,12 +82,9 @@ export function JournalView() {
         <DaySection key={day.page.id} day={day} />
       ))}
       {hasMore && (
-        <button
-          onClick={() => void loadMore()}
-          className="rounded-md border px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-        >
+        <Button variant="outline" size="sm" onClick={() => void loadMore()}>
           Load more
-        </button>
+        </Button>
       )}
     </PageShell>
   );

@@ -1,10 +1,10 @@
 import type { Block, LinkedRefGroup } from '@taproot/shared';
 import { useMemo } from 'react';
-import { Link } from 'wouter';
 import type { OutlineCtx } from '@/lib/outline';
 import { useStore } from '@/store';
 import { BlockContent } from './BlockContent';
-import { Breadcrumb } from './Breadcrumb';
+import { RefBreadcrumb } from './Breadcrumb';
+import { BulletLink } from './Bullet';
 import { EditableBlockText } from './EditableBlockText';
 
 export function LinkedRefs({
@@ -71,10 +71,10 @@ export function RefGroupCard({
   const origin = `refs:${hostPageId}`;
 
   return (
-    <div className="mb-6 rounded-lg border bg-muted/30 px-4 py-3">
+    <div className="mb-6 rounded-xl border bg-muted/30 px-4 py-3">
       {roots.map((root, i) => (
         <div key={root.id} className={i > 0 ? 'mt-4' : undefined}>
-          <Breadcrumb
+          <RefBreadcrumb
             page={group.page}
             ancestors={group.ancestors[root.id] ?? []}
             className="mb-1 font-medium"
@@ -103,13 +103,7 @@ function RefRow({
   return (
     <div>
       <div className="flex items-start gap-1.5 py-[3px]">
-        <Link
-          href={`/b/${block.id}`}
-          title="Zoom to block"
-          className="mt-[5px] flex h-4 w-4 shrink-0 items-center justify-center rounded-full hover:bg-accent"
-        >
-          <span className="block h-[6px] w-[6px] rounded-full bg-muted-foreground/70" />
-        </Link>
+        <BulletLink href={`/b/${block.id}`} />
         {live.kind !== 'drawing' ? (
           <EditableBlockText
             block={live}
@@ -124,7 +118,7 @@ function RefRow({
         )}
       </div>
       {children.length > 0 && (
-        <div className="ml-[7px] border-l border-border pl-[23px]">
+        <div className="ml-outline-guide border-l border-border pl-outline-indent">
           {children.map((child) => (
             <RefRow
               key={child.id}

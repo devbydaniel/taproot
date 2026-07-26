@@ -21,8 +21,8 @@ export function BlockContent({ block }: { block: Block }) {
         className={cn(
           'mr-1.5 inline-flex h-[15px] w-[15px] translate-y-[2px] items-center justify-center rounded-[4px] border transition-colors',
           done
-            ? 'border-transparent bg-muted-foreground/50 text-background'
-            : 'border-muted-foreground/60 hover:border-foreground',
+            ? 'border-transparent bg-primary text-primary-foreground'
+            : 'border-muted-foreground/60 hover:border-primary',
         )}
       >
         {done && <Check className="h-3 w-3" strokeWidth={3.5} />}
