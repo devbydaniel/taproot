@@ -17,7 +17,7 @@
     "test": "vitest run",
     "format": "prettier --write .",
     "lint": "eslint .",
-    "dup": "jscpd shared/src server/src client/src --min-lines 25 --min-tokens 60 --ignore '**/*.test.ts' --threshold 0",
+    "dup": "jscpd shared/src server/src client/src --min-lines 25 --min-tokens 60 --ignore '**/*.test.ts,**/components/ui/**' --threshold 0",
     "knip": "knip",
     "check": "prettier --check . && npm run lint && npm run typecheck && npm run dup && npm run knip && npm test",
     "prepare": "husky"

@@ -6,9 +6,17 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    // lint the three workspace source trees; config files and generated
-    // artifacts (drizzle migrations, dist) stay out of scope
-    ignores: ['**/dist/**', 'server/drizzle/**', 'data/**', '**/*.config.*'],
+    // lint the three workspace source trees; config files, generated
+    // artifacts (drizzle migrations, dist) and vendored shadcn/ui files
+    // stay out of scope
+    ignores: [
+      '**/dist/**',
+      'server/drizzle/**',
+      'data/**',
+      '**/*.config.*',
+      'client/src/components/ui/**',
+      'client/src/hooks/use-mobile.ts',
+    ],
   },
   {
     files: [

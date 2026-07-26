@@ -22,6 +22,7 @@
     "@tanstack/react-hotkeys": "0.10.0",
     "@taproot/server": "*",
     "@taproot/shared": "*",
+    "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "1.1.1",
     "fractional-indexing": "^3.2.0",
@@ -31,7 +32,7 @@
     "nanoid": "^5.0.9",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "tailwind-merge": "^2.6.0",
+    "tailwind-merge": "^3.3.1",
     "wouter": "^3.3.5",
     "zustand": "^5.0.2"
   },
