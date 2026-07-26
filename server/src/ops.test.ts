@@ -239,6 +239,35 @@ describe('applyOps', () => {
     expect(getPagePayload(store, x.id)?.linkedRefs).toHaveLength(0);
   });
 
+  it('drops a text update for a block that no longer exists', () => {
+    const page = setupPage('Home');
+    applyOps(store, [
+      {
+        type: 'create_block',
+        id: 'b1',
+        pageId: page.id,
+        parentId: null,
+        orderKey: 'a0',
+        text: 'here',
+      },
+      { type: 'delete_block', id: 'b1' },
+    ]);
+
+    // a stale op replayed from an offline queue: the block is gone, so its
+    // derived refs/tasks rows must not be written (they would FK-fail and
+    // reject the whole batch)
+    expect(() => {
+      applyOps(store, [
+        { type: 'update_text', id: 'b1', text: 'TODO ping [[X]]' },
+      ]);
+    }).not.toThrow();
+
+    const x = ensurePage(store, 'X');
+    expect(getPagePayload(store, x.id)?.linkedRefs).toHaveLength(0);
+    expect(getTaskList(store).tasks).toHaveLength(0);
+    expect(getPagePayload(store, page.id)?.blocks).toHaveLength(0);
+  });
+
   it('ignores moves that would create a cycle', () => {
     const page = setupPage('Home');
     applyOps(store, [

@@ -169,11 +169,16 @@ function applyOp(store: Store, op: Op) {
       break;
     }
     case 'update_text': {
-      store.db
+      const { changes } = store.db
         .update(blocks)
         .set({ text: op.text, updatedAt: now })
         .where(eq(blocks.id, op.id))
         .run();
+      // The block is gone (deleted here or on another client while this op sat
+      // in an offline queue). The edit is dropped, and so are its derived rows
+      // — writing refs/tasks for a missing block violates their foreign keys
+      // and would fail the whole batch.
+      if (changes === 0) break;
       updateRefs(store, op.id, op.text);
       updateTaskIndex(store, op.id, op.text);
       break;
