@@ -30,7 +30,7 @@ const markdownHighlight = HighlightStyle.define([
 const editorTheme = EditorView.theme({
   '&': { height: '100%', fontSize: '0.9375rem' },
   '.cm-content': {
-    padding: '1.5rem 0',
+    padding: '3.5rem 0 1.5rem',
     lineHeight: '1.7',
     caretColor: 'var(--foreground)',
   },
