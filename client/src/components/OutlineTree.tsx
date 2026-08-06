@@ -4,6 +4,7 @@ import { setCollapsed } from '@/actions';
 import { childrenOf, type OutlineCtx } from '@/lib/outline';
 import { useStore } from '@/store';
 import { BulletLink } from './Bullet';
+import { DocBlock } from './doc/DocBlock';
 import { DrawingBlock } from './drawing/DrawingBlock';
 import { EditableBlockText } from './EditableBlockText';
 
@@ -55,6 +56,10 @@ function BlockRow({ block, ctx }: { block: Block; ctx: OutlineCtx }) {
         {block.kind === 'drawing' ? (
           <div className="min-w-0 flex-1 leading-6">
             <DrawingBlock block={block} ctx={ctx} />
+          </div>
+        ) : block.kind === 'doc' ? (
+          <div className="min-w-0 flex-1 leading-6">
+            <DocBlock block={block} ctx={ctx} />
           </div>
         ) : (
           <EditableBlockText block={block} ctx={ctx} />

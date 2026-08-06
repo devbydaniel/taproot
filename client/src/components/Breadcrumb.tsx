@@ -2,10 +2,15 @@ import { segmentText, type Block, type Page } from '@taproot/shared';
 import { ChevronRight } from 'lucide-react';
 import { Fragment } from 'react';
 import { Link } from 'wouter';
+import { docTitle } from '@/lib/doc';
 import { cn } from '@/lib/utils';
 
 export function renderedPreview(block: Block, max = 40): string {
   if (block.kind === 'drawing') return 'Drawing';
+  if (block.kind === 'doc') {
+    const title = docTitle(block.data) ?? 'Document';
+    return title.length > max ? `${title.slice(0, max)}…` : title;
+  }
   const rendered = segmentText(block.text)
     .map((segment) =>
       segment.type === 'text'
