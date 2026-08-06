@@ -1,5 +1,6 @@
 import {
   advanceRecurringTask,
+  assignTaskPage,
   parseTask,
   rescheduleTask as rescheduleTaskText,
   withTaskState,
@@ -111,6 +112,19 @@ export function rescheduleTask(blockId: string, title: string | null) {
   const block = useStore.getState().blocks[blockId];
   if (!block) return;
   const text = rescheduleTaskText(block.text, title);
+  if (text === block.text) return;
+  flushText();
+  dispatch([{ type: 'update_text', id: blockId, text }]);
+}
+
+/**
+ * Triage: file the task under a page by appending a wikilink. The server
+ * auto-creates the referenced page when the op lands (ensurePage).
+ */
+export function assignTaskToPage(blockId: string, title: string) {
+  const block = useStore.getState().blocks[blockId];
+  if (!block) return;
+  const text = assignTaskPage(block.text, title);
   if (text === block.text) return;
   flushText();
   dispatch([{ type: 'update_text', id: blockId, text }]);

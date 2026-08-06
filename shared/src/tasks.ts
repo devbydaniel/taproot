@@ -63,6 +63,20 @@ export function rescheduleTask(text: string, title: string | null): string {
   return text.slice(0, link.from + 2) + title + text.slice(link.to - 2);
 }
 
+/**
+ * File a task under a page: append ` [[title]]`, unless the text already
+ * links to that page (case-insensitive). Pure text surgery — callers ship the
+ * result as an ordinary update_text op.
+ */
+export function assignTaskPage(text: string, title: string): string {
+  const linked = findWikilinks(text).some(
+    (link) => link.title.toLowerCase() === title.toLowerCase(),
+  );
+  if (linked) return text;
+  const base = text.trimEnd();
+  return base === '' ? `[[${title}]]` : `${base} [[${title}]]`;
+}
+
 export interface TaskBuckets {
   /** no page link, no date — untriaged; createdAt asc (stalest first) */
   inbox: TaskListItem[];

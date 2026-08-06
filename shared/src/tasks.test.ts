@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  assignTaskPage,
   bucketTasks,
   cycleTaskState,
   parseTask,
@@ -106,6 +107,30 @@ describe('rescheduleTask', () => {
     );
     expect(rescheduleTask('TODO x [[2026-08-01]]', null)).toBe('TODO x');
     expect(rescheduleTask('TODO plain', null)).toBe('TODO plain');
+  });
+});
+
+describe('assignTaskPage', () => {
+  it('appends a page link', () => {
+    expect(assignTaskPage('TODO buy milk', 'Groceries')).toBe(
+      'TODO buy milk [[Groceries]]',
+    );
+  });
+
+  it('appends to a bare marker without double spaces', () => {
+    expect(assignTaskPage('TODO ', 'Groceries')).toBe('TODO [[Groceries]]');
+  });
+
+  it('is a no-op when the page is already linked, case-insensitively', () => {
+    expect(assignTaskPage('TODO x [[Groceries]]', 'groceries')).toBe(
+      'TODO x [[Groceries]]',
+    );
+  });
+
+  it('leaves daily links and recurrence tokens untouched', () => {
+    expect(
+      assignTaskPage('TODO x <every week> [[2026-08-01]]', 'Project'),
+    ).toBe('TODO x <every week> [[2026-08-01]] [[Project]]');
   });
 });
 
