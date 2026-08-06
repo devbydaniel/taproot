@@ -46,13 +46,32 @@ export function taskHasPageLink(text: string): boolean {
   return findWikilinks(text).some((link) => !isDailyTitle(link.title));
 }
 
+/**
+ * Rewrite a task's due date: the first daily link becomes [[title]], appended
+ * when there is none; null removes it. Pure text surgery — callers ship the
+ * result as an ordinary update_text op.
+ */
+export function rescheduleTask(text: string, title: string | null): string {
+  const link = firstDailyLink(text);
+  if (title === null) {
+    if (!link) return text;
+    return (text.slice(0, link.from) + text.slice(link.to))
+      .replace(/ {2,}/g, ' ')
+      .trimEnd();
+  }
+  if (!link) return `${text} [[${title}]]`;
+  return text.slice(0, link.from + 2) + title + text.slice(link.to - 2);
+}
+
 export interface TaskBuckets {
   /** no page link, no date — untriaged; createdAt asc (stalest first) */
   inbox: TaskListItem[];
-  /** dueDate <= today — dueDate asc, then createdAt */
-  due: TaskListItem[];
+  /** dueDate < today — dueDate asc, then createdAt */
+  overdue: TaskListItem[];
+  /** dueDate === today — createdAt asc */
+  today: TaskListItem[];
   /** dueDate > today — dueDate asc, then createdAt */
-  planned: TaskListItem[];
+  upcoming: TaskListItem[];
 }
 
 const byDueDate = (a: TaskListItem, b: TaskListItem) =>
@@ -69,17 +88,21 @@ const byDueDate = (a: TaskListItem, b: TaskListItem) =>
  */
 export function bucketTasks(items: TaskListItem[], today: string): TaskBuckets {
   const inbox: TaskListItem[] = [];
-  const due: TaskListItem[] = [];
-  const planned: TaskListItem[] = [];
+  const overdue: TaskListItem[] = [];
+  const todayItems: TaskListItem[] = [];
+  const upcoming: TaskListItem[] = [];
   for (const item of items) {
     if (item.dueDate !== null) {
-      (item.dueDate <= today ? due : planned).push(item);
+      if (item.dueDate < today) overdue.push(item);
+      else if (item.dueDate === today) todayItems.push(item);
+      else upcoming.push(item);
     } else if (!item.hasPageLink) {
       inbox.push(item);
     }
   }
   inbox.sort((a, b) => a.block.createdAt - b.block.createdAt);
-  due.sort(byDueDate);
-  planned.sort(byDueDate);
-  return { inbox, due, planned };
+  overdue.sort(byDueDate);
+  todayItems.sort((a, b) => a.block.createdAt - b.block.createdAt);
+  upcoming.sort(byDueDate);
+  return { inbox, overdue, today: todayItems, upcoming };
 }
