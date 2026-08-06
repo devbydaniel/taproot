@@ -27,13 +27,11 @@ const markdownHighlight = HighlightStyle.define([
   { tag: tags.processingInstruction, color: 'var(--muted-foreground)' },
 ]);
 
+// spacing lives on the wrapper div: index.css's `.cm-editor .cm-content`
+// reset (padding: 0, line-height: inherit) out-ranks theme-injected rules,
+// so .cm-content styles set here would be silently overridden
 const editorTheme = EditorView.theme({
-  '&': { height: '100%', fontSize: '0.9375rem' },
-  '.cm-content': {
-    padding: '3.5rem 0 1.5rem',
-    lineHeight: '1.7',
-    caretColor: 'var(--foreground)',
-  },
+  '&': { height: '100%', fontSize: '0.9375rem', lineHeight: '1.7' },
   '.cm-scroller': { overflow: 'auto' },
 });
 
@@ -131,7 +129,7 @@ export default function DocEditor({ block }: { block: Block }) {
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div
           ref={containerRef}
-          className="mx-auto h-full w-full max-w-3xl px-6"
+          className="mx-auto h-full w-full max-w-3xl px-6 pt-14 pb-6"
         />
       </div>
     </div>
