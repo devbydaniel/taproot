@@ -11,6 +11,7 @@ import { CalendarDays, ChevronLeft, ChevronRight, Pin } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import * as actions from '@/actions';
+import { DailyAgenda } from '@/components/DailyAgenda';
 import { PageShell } from '@/components/layout/PageShell';
 import { LinkedRefs } from '@/components/LinkedRefs';
 import { OutlineTree } from '@/components/OutlineTree';
@@ -122,6 +123,7 @@ export function PageView({ id }: { id: string }) {
         {isDaily ? dailyLabel(payload.page.title) : payload.page.title}
       </h1>
       {isDaily && <DailyNav title={payload.page.title} />}
+      {isDaily && <DailyAgenda pageId={id} pageTitle={payload.page.title} />}
       {hasBlocks ? (
         <OutlineTree parentId={null} ctx={ctx} />
       ) : (
@@ -133,7 +135,7 @@ export function PageView({ id }: { id: string }) {
         </button>
       )}
       <div className="h-24 cursor-text" onClick={clickBelow} />
-      <PageTasks groups={payload.linkedRefs} />
+      {!isDaily && <PageTasks groups={payload.linkedRefs} />}
       <LinkedRefs groups={payload.linkedRefs} currentPageId={payload.page.id} />
     </PageShell>
   );
