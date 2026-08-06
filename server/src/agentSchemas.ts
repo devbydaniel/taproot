@@ -42,14 +42,14 @@ export const fail = <S extends 400 | 404>(
 
 // ---------------------------------------------------------------------------
 // Block trees: agents see nested {id, text, children} — never orderKeys
-// (order is array order), never collapsed/timestamps, and drawing payloads
+// (order is array order), never collapsed/timestamps, and drawing/doc payloads
 // stay opaque (kind marks them, data is withheld).
 // ---------------------------------------------------------------------------
 
 export interface AgentBlockNode {
   id: string;
   text: string;
-  kind?: 'drawing';
+  kind?: 'drawing' | 'doc';
   children?: AgentBlockNode[];
 }
 
@@ -61,10 +61,10 @@ const agentBlockNodeSchema: z.ZodType<AgentBlockNode> = z
         .string()
         .describe('Block text — [[wikilinks]] and TODO/DONE markers verbatim'),
       kind: z
-        .literal('drawing')
+        .enum(['drawing', 'doc'])
         .optional()
         .describe(
-          'Present only for drawing blocks; their content is opaque — do not edit their text',
+          'Present only for drawing/doc blocks; their content is opaque — do not edit their text',
         ),
       children: z
         .array(agentBlockNodeSchema)

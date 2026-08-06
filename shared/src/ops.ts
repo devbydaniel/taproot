@@ -52,7 +52,7 @@ export const opSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('set_kind'),
     id,
-    kind: z.enum(['text', 'drawing']),
+    kind: z.enum(['text', 'drawing', 'doc']),
   }),
   z.object({
     type: z.literal('update_data'),

@@ -41,10 +41,10 @@ export const blocks = sqliteTable(
     parentId: text('parent_id'),
     orderKey: text('order_key').notNull(),
     text: text('text').notNull().default(''),
-    kind: text('kind', { enum: ['text', 'drawing'] })
+    kind: text('kind', { enum: ['text', 'drawing', 'doc'] })
       .notNull()
       .default('text'),
-    // opaque payload for non-text kinds (drawing: scene JSON); never indexed
+    // opaque payload for non-text kinds (drawing: scene JSON; doc: raw markdown); never indexed
     data: text('data'),
     // children hidden in outline views; persisted UI state, not content
     collapsed: integer('collapsed', { mode: 'boolean' })
