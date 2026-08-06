@@ -1,6 +1,7 @@
 import {
   advanceRecurringTask,
   parseTask,
+  rescheduleTask as rescheduleTaskText,
   withTaskState,
   type Op,
 } from '@taproot/shared';
@@ -100,6 +101,19 @@ export function toggleTaskCheckbox(blockId: string) {
     });
   }
   dispatch(ops);
+}
+
+/**
+ * Date-pill pick: rewrite the task's due-date link to `title` (null removes
+ * it). A plain update_text op, so refs/tasks indexes follow automatically.
+ */
+export function rescheduleTask(blockId: string, title: string | null) {
+  const block = useStore.getState().blocks[blockId];
+  if (!block) return;
+  const text = rescheduleTaskText(block.text, title);
+  if (text === block.text) return;
+  flushText();
+  dispatch([{ type: 'update_text', id: blockId, text }]);
 }
 
 /** Pin appends at the end of the top level; unpin clears the key and the folder. */

@@ -3,6 +3,7 @@ import {
   bucketTasks,
   cycleTaskState,
   parseTask,
+  rescheduleTask,
   taskDueDate,
   taskHasPageLink,
   withTaskState,
@@ -80,6 +81,34 @@ describe('taskHasPageLink', () => {
   });
 });
 
+describe('rescheduleTask', () => {
+  it('rewrites the first daily link in place', () => {
+    expect(rescheduleTask('TODO x [[2026-08-01]] end', '2026-08-05')).toBe(
+      'TODO x [[2026-08-05]] end',
+    );
+  });
+
+  it('skips page links and only touches the daily link', () => {
+    expect(
+      rescheduleTask('TODO [[Project]] [[2026-08-01]]', '2026-08-02'),
+    ).toBe('TODO [[Project]] [[2026-08-02]]');
+  });
+
+  it('appends a link when the task is undated', () => {
+    expect(rescheduleTask('TODO buy milk', '2026-08-05')).toBe(
+      'TODO buy milk [[2026-08-05]]',
+    );
+  });
+
+  it('removes the link and collapses whitespace on unschedule', () => {
+    expect(rescheduleTask('TODO x [[2026-08-01]] end', null)).toBe(
+      'TODO x end',
+    );
+    expect(rescheduleTask('TODO x [[2026-08-01]]', null)).toBe('TODO x');
+    expect(rescheduleTask('TODO plain', null)).toBe('TODO plain');
+  });
+});
+
 describe('bucketTasks', () => {
   const TODAY = '2026-07-12';
   let nextId = 0;
@@ -113,7 +142,7 @@ describe('bucketTasks', () => {
 
   const texts = (list: TaskListItem[]) => list.map((i) => i.block.text);
 
-  it('buckets by date vs today, inbox for bare tasks', () => {
+  it('splits overdue, today, and upcoming; inbox for bare tasks', () => {
     const buckets = bucketTasks(
       [
         item('TODO overdue [[2026-07-10]]'),
@@ -123,11 +152,9 @@ describe('bucketTasks', () => {
       ],
       TODAY,
     );
-    expect(texts(buckets.due)).toEqual([
-      'TODO overdue [[2026-07-10]]',
-      'TODO today [[2026-07-12]]',
-    ]);
-    expect(texts(buckets.planned)).toEqual(['TODO later [[2026-07-20]]']);
+    expect(texts(buckets.overdue)).toEqual(['TODO overdue [[2026-07-10]]']);
+    expect(texts(buckets.today)).toEqual(['TODO today [[2026-07-12]]']);
+    expect(texts(buckets.upcoming)).toEqual(['TODO later [[2026-07-20]]']);
     expect(texts(buckets.inbox)).toEqual(['TODO bare']);
   });
 
@@ -136,32 +163,39 @@ describe('bucketTasks', () => {
       [item('TODO x [[Project]] [[2026-07-01]]')],
       TODAY,
     );
-    expect(buckets.due).toHaveLength(1);
+    expect(buckets.overdue).toHaveLength(1);
     expect(buckets.inbox).toHaveLength(0);
   });
 
   it('drops undated tasks that link to a page', () => {
     const buckets = bucketTasks([item('TODO x [[Project]]')], TODAY);
     expect(buckets.inbox).toHaveLength(0);
-    expect(buckets.due).toHaveLength(0);
-    expect(buckets.planned).toHaveLength(0);
+    expect(buckets.overdue).toHaveLength(0);
+    expect(buckets.today).toHaveLength(0);
+    expect(buckets.upcoming).toHaveLength(0);
   });
 
-  it('sorts due/planned by date then createdAt, inbox by createdAt', () => {
+  it('sorts overdue/upcoming by date then createdAt, inbox/today by createdAt', () => {
     const buckets = bucketTasks(
       [
         item('TODO b [[2026-07-10]]', 2),
         item('TODO a [[2026-07-10]]', 1),
         item('TODO c [[2026-07-01]]', 3),
+        item('TODO t2 [[2026-07-12]]', 7),
+        item('TODO t1 [[2026-07-12]]', 6),
         item('TODO new', 5),
         item('TODO old', 4),
       ],
       TODAY,
     );
-    expect(texts(buckets.due)).toEqual([
+    expect(texts(buckets.overdue)).toEqual([
       'TODO c [[2026-07-01]]',
       'TODO a [[2026-07-10]]',
       'TODO b [[2026-07-10]]',
+    ]);
+    expect(texts(buckets.today)).toEqual([
+      'TODO t1 [[2026-07-12]]',
+      'TODO t2 [[2026-07-12]]',
     ]);
     expect(texts(buckets.inbox)).toEqual(['TODO old', 'TODO new']);
   });
