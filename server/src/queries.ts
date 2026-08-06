@@ -355,6 +355,17 @@ export function getPagePayload(
   };
 }
 
+/** Raw markdown of a doc block; null when the block is missing or not a doc. */
+export function getDocMarkdown(store: Store, blockId: string): string | null {
+  const block = store.db
+    .select({ kind: blocks.kind, data: blocks.data })
+    .from(blocks)
+    .where(eq(blocks.id, blockId))
+    .get();
+  if (!block || block.kind !== 'doc') return null;
+  return block.data ?? '';
+}
+
 export function getZoomPayload(
   store: Store,
   blockId: string,

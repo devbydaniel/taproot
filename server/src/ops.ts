@@ -318,3 +318,25 @@ export function applyOps(store: Store, ops: Op[]) {
     for (const op of ops) applyOp(store, op);
   })();
 }
+
+/**
+ * Replace a doc block's markdown from the HTTP API. Refuses blocks that are
+ * missing or not kind 'doc' (returns null → 404) so the endpoint can never
+ * stomp a drawing scene or a text block's data. Returns the applied ops for
+ * the route layer to broadcast.
+ */
+export function saveDocMarkdown(
+  store: Store,
+  blockId: string,
+  markdown: string,
+): Op[] | null {
+  const block = store.db
+    .select({ kind: blocks.kind })
+    .from(blocks)
+    .where(eq(blocks.id, blockId))
+    .get();
+  if (!block || block.kind !== 'doc') return null;
+  const ops: Op[] = [{ type: 'update_data', id: blockId, data: markdown }];
+  applyOps(store, ops);
+  return ops;
+}

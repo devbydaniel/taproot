@@ -104,7 +104,7 @@ function RefRow({
     <div>
       <div className="flex items-start gap-1.5 py-[3px]">
         <BulletLink href={`/b/${block.id}`} />
-        {live.kind !== 'drawing' ? (
+        {live.kind === 'text' ? (
           <EditableBlockText
             block={live}
             ctx={ctx}

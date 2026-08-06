@@ -1,5 +1,7 @@
 import { opsRequestSchema, type Op } from '@taproot/shared';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { agentGetPage } from './agent.js';
+import { createApi } from './app.js';
 import { createStore, type Store } from './db.js';
 import { applyOps, ensurePage, reindexTasks } from './ops.js';
 import {
@@ -1010,5 +1012,149 @@ describe('drawing blocks', () => {
     const page = setupDrawing();
     applyOps(store, [{ type: 'update_data', id: 'nope', data: 'x' }]);
     expect(getPagePayload(store, page.id)?.blocks).toHaveLength(1);
+  });
+});
+
+describe('doc blocks', () => {
+  function setupDoc() {
+    const page = setupPage('Home');
+    applyOps(store, [
+      {
+        type: 'create_block',
+        id: 'doc1',
+        pageId: page.id,
+        parentId: null,
+        orderKey: 'a0',
+        text: '/write',
+      },
+    ]);
+    // conversion as the client dispatches it: clear text, then switch kind
+    applyOps(store, [
+      { type: 'update_text', id: 'doc1', text: '' },
+      { type: 'set_kind', id: 'doc1', kind: 'doc' },
+    ]);
+    return page;
+  }
+
+  it('converts a block via update_text + set_kind', () => {
+    const page = setupDoc();
+    const block = getPagePayload(store, page.id)?.blocks[0];
+    expect(block?.kind).toBe('doc');
+    expect(block?.text).toBe('');
+  });
+
+  it('stores markdown verbatim without touching refs or tasks', () => {
+    const page = setupDoc();
+    const markdown = '# Notes\n\nsee [[Ghost]]\n\nTODO buy milk';
+    applyOps(store, [{ type: 'update_data', id: 'doc1', data: markdown }]);
+
+    const block = getPagePayload(store, page.id)?.blocks[0];
+    expect(block?.data).toBe(markdown);
+    // markdown is opaque: no page auto-created, no task indexed
+    expect(listPages(store).map((p) => p.title)).not.toContain('Ghost');
+    expect(getTaskGroups(store)).toHaveLength(0);
+    reindexTasks(store);
+    expect(getTaskGroups(store)).toHaveLength(0);
+  });
+
+  it('marks doc blocks opaque in agent payloads', () => {
+    const page = setupDoc();
+    applyOps(store, [{ type: 'update_data', id: 'doc1', data: '# secret' }]);
+    const result = agentGetPage(store, { title: page.title });
+    expect(result).toMatchObject({
+      result: { blocks: [{ id: 'doc1', kind: 'doc', text: '' }] },
+    });
+    expect(JSON.stringify(result)).not.toContain('secret');
+  });
+
+  it('GET /docs/:blockId returns raw markdown as text/markdown', async () => {
+    setupDoc();
+    const markdown = '# Title\n\nbody with **bold**';
+    applyOps(store, [{ type: 'update_data', id: 'doc1', data: markdown }]);
+
+    const api = createApi(store, vi.fn());
+    const res = await api.request('/docs/doc1');
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('text/markdown');
+    expect(await res.text()).toBe(markdown);
+  });
+
+  it('GET /docs/:blockId returns empty body for a never-saved doc', async () => {
+    setupDoc();
+    const api = createApi(store, vi.fn());
+    const res = await api.request('/docs/doc1');
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe('');
+  });
+
+  it('GET /docs/:blockId 404s for unknown ids and non-doc blocks', async () => {
+    const page = setupPage('Home');
+    applyOps(store, [
+      {
+        type: 'create_block',
+        id: 't1',
+        pageId: page.id,
+        parentId: null,
+        orderKey: 'a0',
+        text: 'plain text block',
+      },
+    ]);
+    const api = createApi(store, vi.fn());
+    expect((await api.request('/docs/nope')).status).toBe(404);
+    expect((await api.request('/docs/t1')).status).toBe(404);
+  });
+
+  it('PUT /docs/:blockId saves markdown and broadcasts as clientId "api"', async () => {
+    const page = setupDoc();
+    const broadcast = vi.fn();
+    const api = createApi(store, broadcast);
+    const markdown = '# Updated\n\nvia HTTP';
+
+    const res = await api.request('/docs/doc1', {
+      method: 'PUT',
+      body: markdown,
+    });
+    expect(res.status).toBe(200);
+    expect(broadcast).toHaveBeenCalledOnce();
+    expect(broadcast.mock.calls[0]![0]).toMatchObject({
+      type: 'ops',
+      clientId: 'api',
+      ops: [{ type: 'update_data', id: 'doc1', data: markdown }],
+    });
+    expect(await (await api.request('/docs/doc1')).text()).toBe(markdown);
+    expect(getPagePayload(store, page.id)?.blocks[0]?.data).toBe(markdown);
+  });
+
+  it('PUT /docs/:blockId 404s for non-doc blocks without writing', async () => {
+    const page = setupPage('Home');
+    applyOps(store, [
+      {
+        type: 'create_block',
+        id: 't1',
+        pageId: page.id,
+        parentId: null,
+        orderKey: 'a0',
+        text: 'keep me',
+      },
+    ]);
+    const broadcast = vi.fn();
+    const api = createApi(store, broadcast);
+    const res = await api.request('/docs/t1', { method: 'PUT', body: '# no' });
+    expect(res.status).toBe(404);
+    expect(broadcast).not.toHaveBeenCalled();
+    expect(getPagePayload(store, page.id)?.blocks[0]?.data).toBeNull();
+  });
+
+  it('PUT /docs/:blockId rejects oversized bodies with 413', async () => {
+    setupDoc();
+    const broadcast = vi.fn();
+    const api = createApi(store, broadcast);
+    const res = await api.request('/docs/doc1', {
+      method: 'PUT',
+      body: 'x'.repeat(2_000_001),
+    });
+    expect(res.status).toBe(413);
+    expect(broadcast).not.toHaveBeenCalled();
+    expect(await (await api.request('/docs/doc1')).text()).toBe('');
   });
 });

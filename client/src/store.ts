@@ -28,6 +28,8 @@ interface OutlineState {
   focused: FocusTarget | null;
   /** drawing block whose fullscreen editor is open, if any */
   openDrawingId: string | null;
+  /** doc block whose fullscreen markdown editor is open, if any */
+  openDocId: string | null;
   /** bumped whenever remote ops arrive, so views can refetch derived data (linked refs, sidebar) */
   remoteEpoch: number;
   /** driven by the WebSocket (open/close), not navigator.onLine */
@@ -47,6 +49,7 @@ interface OutlineState {
   remapPageId: (from: string, to: string) => void;
   setFocus: (target: FocusTarget | null) => void;
   setOpenDrawing: (blockId: string | null) => void;
+  setOpenDoc: (blockId: string | null) => void;
 }
 
 /** the subtree rooted at rootId, found by fixpoint since blocks is unordered */
@@ -250,6 +253,7 @@ export const useStore = create<OutlineState>((set) => ({
   blocks: {},
   focused: null,
   openDrawingId: null,
+  openDocId: null,
   remoteEpoch: 0,
   connectivity: 'online',
   pendingCount: 0,
@@ -310,4 +314,5 @@ export const useStore = create<OutlineState>((set) => ({
     })),
   setFocus: (focused) => set({ focused }),
   setOpenDrawing: (openDrawingId) => set({ openDrawingId }),
+  setOpenDoc: (openDocId) => set({ openDocId }),
 }));

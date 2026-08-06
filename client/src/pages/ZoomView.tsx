@@ -4,6 +4,7 @@ import * as actions from '@/actions';
 import { BlockEditor } from '@/components/BlockEditor';
 import { renderedPreview } from '@/components/Breadcrumb';
 import { PageShell } from '@/components/layout/PageShell';
+import { DocBlock } from '@/components/doc/DocBlock';
 import { DrawingBlock } from '@/components/drawing/DrawingBlock';
 import { OutlineTree } from '@/components/OutlineTree';
 import { StaticText } from '@/components/StaticText';
@@ -72,6 +73,8 @@ export function ZoomView({ id }: { id: string }) {
       <div className="mb-6">
         {(liveBlock ?? payload.block).kind === 'drawing' ? (
           <DrawingBlock block={liveBlock ?? payload.block} ctx={ctx} />
+        ) : (liveBlock ?? payload.block).kind === 'doc' ? (
+          <DocBlock block={liveBlock ?? payload.block} ctx={ctx} />
         ) : isTitleFocused ? (
           <BlockEditor blockId={id} ctx={ctx} variant="title" />
         ) : (

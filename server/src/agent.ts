@@ -63,7 +63,7 @@ function toTrees(list: Block[], rootIds?: string[]): AgentBlockNode[] {
   const map = childrenMap(list);
   const build = (block: Block): AgentBlockNode => {
     const node: AgentBlockNode = { id: block.id, text: block.text };
-    if (block.kind === 'drawing') node.kind = 'drawing';
+    if (block.kind !== 'text') node.kind = block.kind;
     const children = (map.get(block.id) ?? []).slice().sort(byOrderKey);
     if (children.length > 0) node.children = children.map(build);
     return node;

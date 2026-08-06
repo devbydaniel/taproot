@@ -21,7 +21,7 @@ export interface PinFolder {
   createdAt: number;
 }
 
-export type BlockKind = 'text' | 'drawing';
+export type BlockKind = 'text' | 'drawing' | 'doc';
 
 export interface Block {
   id: string;
@@ -32,7 +32,7 @@ export interface Block {
   orderKey: string;
   text: string;
   kind: BlockKind;
-  /** opaque payload for non-text kinds (drawing: scene JSON); never indexed */
+  /** opaque payload for non-text kinds (drawing: scene JSON; doc: raw markdown); never indexed */
   data: string | null;
   /** children hidden in outline views; persisted UI state, not content */
   collapsed: boolean;
