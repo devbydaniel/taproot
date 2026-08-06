@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'wouter';
 import { BlockContent } from '@/components/BlockContent';
 import { BulletLink } from '@/components/Bullet';
+import { TaskDatePill } from '@/components/TaskDatePill';
 import { api } from '@/lib/api';
 import { installMergedBlocks } from '@/lib/offline/sync';
 import { cn } from '@/lib/utils';
@@ -166,6 +167,7 @@ function AgendaSection({
           <div className="min-w-0 flex-1 leading-6">
             <BlockContent block={block} />
           </div>
+          <TaskDatePill block={block} />
           {chip && (
             <Link
               href={chip.href}
