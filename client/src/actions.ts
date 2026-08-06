@@ -334,6 +334,27 @@ export function saveDrawing(blockId: string, data: string) {
   dispatch([{ type: 'update_data', id: blockId, data }]);
 }
 
+// --- doc blocks ---
+
+/** '/write' + Enter: turn the block into a markdown doc and start writing. */
+export function convertToDoc(blockId: string) {
+  const { blocks, setFocus, setOpenDoc } = useStore.getState();
+  if (!blocks[blockId]) return;
+  pendingText.delete(blockId);
+  flushText();
+  dispatch([
+    { type: 'update_text', id: blockId, text: '' },
+    { type: 'set_kind', id: blockId, kind: 'doc' },
+  ]);
+  setFocus({ blockId, cursor: 'end' });
+  setOpenDoc(blockId);
+}
+
+/** Persist a doc's raw markdown (the editor debounces its calls). */
+export function saveDoc(blockId: string, markdown: string) {
+  dispatch([{ type: 'update_data', id: blockId, data: markdown }]);
+}
+
 /** Arrow navigation across blocks. dir -1 = previous, 1 = next in visible order. */
 export function focusNeighbor(
   blockId: string,

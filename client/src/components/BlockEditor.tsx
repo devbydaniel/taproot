@@ -67,25 +67,29 @@ function wikiCompletionSource(
 
 /**
  * Slash commands: a block whose whole text is `/…` offers block-level
- * transformations. Only `/draw` for now; add future commands here.
+ * transformations. Add future commands here.
  */
+const SLASH_COMMANDS = [
+  { name: 'draw', detail: 'insert a drawing', run: actions.convertToDrawing },
+  { name: 'write', detail: 'write a document', run: actions.convertToDoc },
+] as const;
+
 function makeSlashCompletionSource(blockId: string) {
   return (context: CompletionContext): CompletionResult | null => {
     const match = context.matchBefore(/^\/[a-zA-Z]*$/);
     if (!match) return null;
-    const query = context.state.sliceDoc(match.from + 1, context.pos);
-    if (!'draw'.startsWith(query.toLowerCase())) return null;
-    return {
-      from: match.from,
-      filter: false,
-      options: [
-        {
-          label: '/draw',
-          detail: 'insert a drawing',
-          apply: () => actions.convertToDrawing(blockId),
-        },
-      ],
-    };
+    const query = context.state
+      .sliceDoc(match.from + 1, context.pos)
+      .toLowerCase();
+    const options = SLASH_COMMANDS.filter((cmd) =>
+      cmd.name.startsWith(query),
+    ).map((cmd) => ({
+      label: `/${cmd.name}`,
+      detail: cmd.detail,
+      apply: () => cmd.run(blockId),
+    }));
+    if (options.length === 0) return null;
+    return { from: match.from, filter: false, options };
   };
 }
 
@@ -170,8 +174,11 @@ export function BlockEditor({
             // a space via the singleLine filter
             if (!structural) return true;
             // fallback for a dismissed completion popup
-            if (view.state.doc.toString().trim() === '/draw') {
-              actions.convertToDrawing(blockId);
+            const slash = SLASH_COMMANDS.find(
+              (cmd) => view.state.doc.toString().trim() === `/${cmd.name}`,
+            );
+            if (slash) {
+              slash.run(blockId);
               return true;
             }
             // Enter on an empty bullet outdents instead of splitting
