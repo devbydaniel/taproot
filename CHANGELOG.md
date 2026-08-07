@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.15.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.14.0...taproot-v0.15.0) (2026-08-07)
+
+
+### Features
+
+* **client:** agenda widget on daily pages ([#16](https://github.com/devbydaniel/taproot/issues/16)) ([0a86f03](https://github.com/devbydaniel/taproot/commit/0a86f03284c736ea9464ea31104ed8bfb6fa71c8))
+* **client:** keyboard triage and assign-to-page on the Tasks page ([#18](https://github.com/devbydaniel/taproot/issues/18)) ([676315b](https://github.com/devbydaniel/taproot/commit/676315b029ce410c41d4a7f94a649ff53c49ce83))
+
 ## [0.14.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.13.0...taproot-v0.14.0) (2026-08-07)
 
 
