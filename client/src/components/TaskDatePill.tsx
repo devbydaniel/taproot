@@ -23,10 +23,22 @@ import { cn } from '@/lib/utils';
 /**
  * Clickable due-date chip on a task row: quick reschedules (Today / Tomorrow /
  * next Monday / Clear) plus a calendar. All picks are text rewrites of the
- * task's first daily link.
+ * task's first daily link. Pass open/onOpenChange to control the popover from
+ * outside (keyboard triage); Escape handling then belongs to the controller.
  */
-export function TaskDatePill({ block }: { block: Block }) {
-  const [open, setOpen] = useState(false);
+export function TaskDatePill({
+  block,
+  open,
+  onOpenChange,
+}: {
+  block: Block;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const controlled = open !== undefined;
+  const isOpen = controlled ? open : internalOpen;
+  const setOpen = onOpenChange ?? setInternalOpen;
   const dueDate = taskDueDate(block.text);
   const today = todayTitle();
   const overdue = dueDate !== null && dueDate < today;
@@ -46,7 +58,7 @@ export function TaskDatePill({ block }: { block: Block }) {
   ];
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={isOpen} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         {dueDate === null ? (
           <Button
@@ -71,7 +83,12 @@ export function TaskDatePill({ block }: { block: Block }) {
           </button>
         )}
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="end">
+      <PopoverContent
+        className="w-auto p-0"
+        align="end"
+        onEscapeKeyDown={controlled ? (e) => e.preventDefault() : undefined}
+        onCloseAutoFocus={controlled ? (e) => e.preventDefault() : undefined}
+      >
         <div className="flex items-center gap-1 border-b p-2">
           {quick.map((option) => (
             <Button
