@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.14.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.13.0...taproot-v0.14.0) (2026-08-07)
+
+
+### Features
+
+* /write markdown doc blocks with API access ([#14](https://github.com/devbydaniel/taproot/issues/14)) ([4867225](https://github.com/devbydaniel/taproot/commit/48672252f6539921a21804daffe31d517e2cd65e))
+* reschedule tasks from the Tasks page with a date pill ([5b81592](https://github.com/devbydaniel/taproot/commit/5b815929d9e472ce56c3c9c906dec24b4965ed43))
+
 ## [0.13.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.12.0...taproot-v0.13.0) (2026-07-26)
 
 
