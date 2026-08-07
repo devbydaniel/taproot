@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   assignTaskPage,
+  bucketAgenda,
   bucketTasks,
   cycleTaskState,
   parseTask,
@@ -9,7 +10,7 @@ import {
   taskHasPageLink,
   withTaskState,
 } from './tasks.js';
-import type { TaskListItem } from './types.js';
+import type { Block, TaskListItem } from './types.js';
 
 describe('parseTask', () => {
   it('parses TODO and DONE markers', () => {
@@ -223,5 +224,162 @@ describe('bucketTasks', () => {
       'TODO t2 [[2026-07-12]]',
     ]);
     expect(texts(buckets.inbox)).toEqual(['TODO old', 'TODO new']);
+  });
+});
+
+describe('bucketAgenda', () => {
+  const TODAY = '2026-07-12';
+  let nextId = 0;
+
+  function blk(
+    text: string,
+    opts: { id?: string; parentId?: string | null; orderKey?: string } = {},
+  ): Block {
+    return {
+      id: opts.id ?? `b${nextId++}`,
+      pageId: 'daily',
+      parentId: opts.parentId ?? null,
+      orderKey: opts.orderKey ?? 'a0',
+      text,
+      kind: 'text',
+      data: null,
+      collapsed: false,
+      createdAt: 0,
+      updatedAt: 0,
+    };
+  }
+
+  function item(text: string, createdAt = 0, block?: Block): TaskListItem {
+    return {
+      block: block ?? { ...blk(text), pageId: 'other', createdAt },
+      page: {
+        id: 'other',
+        title: 'Page',
+        createdAt: 0,
+        pinnedOrderKey: null,
+        pinnedFolderId: null,
+      },
+      dueDate: taskDueDate(text),
+      hasPageLink: taskHasPageLink(text),
+    };
+  }
+
+  const itemTexts = (list: TaskListItem[]) => list.map((i) => i.block.text);
+  const blockTexts = (list: Block[]) => list.map((b) => b.text);
+
+  it('splits overdue, due-this-day, and on-page tasks on today’s page', () => {
+    const buckets = bucketAgenda(
+      [
+        item('TODO overdue [[2026-07-10]]'),
+        item('TODO today [[2026-07-12]]'),
+        item('TODO later [[2026-07-20]]'),
+        item('TODO bare'),
+      ],
+      [blk('TODO on page'), blk('TODO planned here [[2026-07-20]]')],
+      TODAY,
+      TODAY,
+    );
+    expect(itemTexts(buckets.overdue)).toEqual(['TODO overdue [[2026-07-10]]']);
+    expect(itemTexts(buckets.dueThisDay)).toEqual([
+      'TODO today [[2026-07-12]]',
+    ]);
+    expect(blockTexts(buckets.onPage)).toEqual([
+      'TODO on page',
+      'TODO planned here [[2026-07-20]]',
+    ]);
+  });
+
+  it('suppresses overdue on other days but keeps that day’s tasks', () => {
+    const buckets = bucketAgenda(
+      [item('TODO old [[2026-07-01]]'), item('TODO that day [[2026-07-11]]')],
+      [],
+      '2026-07-11',
+      TODAY,
+    );
+    expect(buckets.overdue).toHaveLength(0);
+    expect(itemTexts(buckets.dueThisDay)).toEqual([
+      'TODO that day [[2026-07-11]]',
+    ]);
+  });
+
+  it('never counts undated tasks as overdue', () => {
+    const buckets = bucketAgenda(
+      [item('TODO bare'), item('TODO linked [[Project]]')],
+      [],
+      TODAY,
+      TODAY,
+    );
+    expect(buckets.overdue).toHaveLength(0);
+    expect(buckets.dueThisDay).toHaveLength(0);
+  });
+
+  it('claims dated on-page blocks for the dated sections', () => {
+    const dueHere = blk('TODO here [[2026-07-12]]');
+    const overdueHere = blk('TODO stale here [[2026-07-01]]');
+    const buckets = bucketAgenda(
+      [item(dueHere.text, 0, dueHere), item(overdueHere.text, 0, overdueHere)],
+      [dueHere, overdueHere, blk('TODO plain')],
+      TODAY,
+      TODAY,
+    );
+    expect(itemTexts(buckets.overdue)).toEqual([overdueHere.text]);
+    expect(itemTexts(buckets.dueThisDay)).toEqual([dueHere.text]);
+    expect(blockTexts(buckets.onPage)).toEqual(['TODO plain']);
+  });
+
+  it('excludes DONE and plain blocks from on-page tasks', () => {
+    const buckets = bucketAgenda(
+      [],
+      [blk('DONE finished'), blk('just a note'), blk('TODO open')],
+      TODAY,
+      TODAY,
+    );
+    expect(blockTexts(buckets.onPage)).toEqual(['TODO open']);
+  });
+
+  it('walks the page outline depth-first regardless of input order', () => {
+    const root2 = blk('TODO second root', { id: 'r2', orderKey: 'a2' });
+    const root1 = blk('TODO first root', { id: 'r1', orderKey: 'a1' });
+    const child = blk('TODO child', { parentId: 'r1', orderKey: 'a0' });
+    const grandchild = blk('TODO grandchild', {
+      parentId: child.id,
+      orderKey: 'a0',
+    });
+    const buckets = bucketAgenda(
+      [],
+      [root2, grandchild, root1, child],
+      TODAY,
+      TODAY,
+    );
+    expect(blockTexts(buckets.onPage)).toEqual([
+      'TODO first root',
+      'TODO child',
+      'TODO grandchild',
+      'TODO second root',
+    ]);
+  });
+
+  it('sorts overdue by date then createdAt, due-this-day by createdAt', () => {
+    const buckets = bucketAgenda(
+      [
+        item('TODO b [[2026-07-10]]', 2),
+        item('TODO a [[2026-07-10]]', 1),
+        item('TODO c [[2026-07-01]]', 3),
+        item('TODO t2 [[2026-07-12]]', 7),
+        item('TODO t1 [[2026-07-12]]', 6),
+      ],
+      [],
+      TODAY,
+      TODAY,
+    );
+    expect(itemTexts(buckets.overdue)).toEqual([
+      'TODO c [[2026-07-01]]',
+      'TODO a [[2026-07-10]]',
+      'TODO b [[2026-07-10]]',
+    ]);
+    expect(itemTexts(buckets.dueThisDay)).toEqual([
+      'TODO t1 [[2026-07-12]]',
+      'TODO t2 [[2026-07-12]]',
+    ]);
   });
 });

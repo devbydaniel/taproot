@@ -1,5 +1,5 @@
 import { isDailyTitle } from './daily.js';
-import type { TaskListItem } from './types.js';
+import type { Block, TaskListItem } from './types.js';
 import { findWikilinks } from './wikilinks.js';
 
 export type TaskState = 'TODO' | 'DONE';
@@ -119,4 +119,61 @@ export function bucketTasks(items: TaskListItem[], today: string): TaskBuckets {
   todayItems.sort((a, b) => a.block.createdAt - b.block.createdAt);
   upcoming.sort(byDueDate);
   return { inbox, overdue, today: todayItems, upcoming };
+}
+
+export interface AgendaBuckets {
+  /** dueDate < today; only when the displayed day IS today — dueDate asc, then createdAt */
+  overdue: TaskListItem[];
+  /** dueDate === the displayed page's title — createdAt asc */
+  dueThisDay: TaskListItem[];
+  /** open TODOs from the page's own outline, minus dated ones shown above — outline order */
+  onPage: Block[];
+}
+
+/**
+ * Buckets for the daily-page agenda widget. Overdue means an explicit past
+ * date link only (undated tasks on old daily pages don't count) and appears
+ * only when the displayed day is the real today; dueThisDay follows the
+ * displayed page, so past and future days show their own agenda. onPage walks
+ * the page's blocks in document order — collapsed subtrees included — and
+ * skips blocks already claimed by the dated sections.
+ */
+export function bucketAgenda(
+  items: TaskListItem[],
+  pageBlocks: Block[],
+  pageTitle: string,
+  today: string,
+): AgendaBuckets {
+  const overdue: TaskListItem[] = [];
+  const dueThisDay: TaskListItem[] = [];
+  for (const item of items) {
+    if (item.dueDate === null) continue;
+    if (item.dueDate === pageTitle) dueThisDay.push(item);
+    else if (pageTitle === today && item.dueDate < today) overdue.push(item);
+  }
+  overdue.sort(byDueDate);
+  dueThisDay.sort((a, b) => a.block.createdAt - b.block.createdAt);
+  const claimed = new Set(
+    [...overdue, ...dueThisDay].map((item) => item.block.id),
+  );
+
+  const byParent = new Map<string | null, Block[]>();
+  for (const block of pageBlocks) {
+    const siblings = byParent.get(block.parentId);
+    if (siblings) siblings.push(block);
+    else byParent.set(block.parentId, [block]);
+  }
+  const onPage: Block[] = [];
+  const visit = (parentId: string | null) => {
+    const children = byParent.get(parentId) ?? [];
+    children.sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1));
+    for (const child of children) {
+      if (!claimed.has(child.id) && parseTask(child.text)?.state === 'TODO') {
+        onPage.push(child);
+      }
+      visit(child.id);
+    }
+  };
+  visit(null);
+  return { overdue, dueThisDay, onPage };
 }
