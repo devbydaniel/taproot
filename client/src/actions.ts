@@ -156,12 +156,16 @@ export function movePinnedItem(activeId: string, overId: string) {
   if (ops.length > 0) dispatch(ops);
 }
 
-/** Menu counterpart of dragging into a folder; `folderId` null moves back to top level. */
-export function movePageToPinFolder(pageId: string, folderId: string | null) {
+/** Pin a page at this location, or move an existing pin there. */
+export function pinPageToFolder(pageId: string, folderId: string | null) {
   const { pages, pinFolders } = useStore.getState();
   const page = pages.find((p) => p.id === pageId);
-  if (!page || page.pinnedOrderKey === null) return;
-  if ((page.pinnedFolderId ?? null) === folderId) return;
+  if (!page) return;
+  if (
+    page.pinnedOrderKey !== null &&
+    (page.pinnedFolderId ?? null) === folderId
+  )
+    return;
   dispatch([
     {
       type: 'set_page_pinned',

@@ -7,7 +7,14 @@ import {
   todayTitle,
   type PagePayload,
 } from '@taproot/shared';
-import { CalendarDays, ChevronLeft, ChevronRight, Pin } from 'lucide-react';
+import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Folder,
+  Pin,
+  PinOff,
+} from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import * as actions from '@/actions';
@@ -18,6 +25,16 @@ import { OutlineTree } from '@/components/OutlineTree';
 import { PageTasks } from '@/components/PageTasks';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Popover,
   PopoverContent,
@@ -34,10 +51,6 @@ export function PageView({ id }: { id: string }) {
   const remoteEpoch = useStore((s) => s.remoteEpoch);
   const hasBlocks = useStore((s) =>
     Object.values(s.blocks).some((b) => b.pageId === id),
-  );
-  // read pinned state from the store, not the payload, so toggles are optimistic
-  const pinned = useStore(
-    (s) => s.pages.find((p) => p.id === id)?.pinnedOrderKey != null,
   );
   // pages already auto-focused, so remote-epoch refetches don't steal the cursor
   const autoFocused = useRef<string | null>(null);
@@ -101,19 +114,7 @@ export function PageView({ id }: { id: string }) {
           : { label: 'Pages', href: '/pages' },
         { label: payload.page.title },
       ]}
-      actions={
-        <Button
-          variant="ghost"
-          size="icon"
-          className={
-            'size-7 ' + (pinned ? 'text-foreground' : 'text-muted-foreground')
-          }
-          onClick={() => actions.togglePagePinned(id)}
-          title={pinned ? 'Unpin from sidebar' : 'Pin to sidebar'}
-        >
-          <Pin className={pinned ? 'fill-current' : ''} />
-        </Button>
-      }
+      actions={<PagePinMenu pageId={id} />}
     >
       <h1
         className={
@@ -138,6 +139,66 @@ export function PageView({ id }: { id: string }) {
       {!isDaily && <PageTasks groups={payload.linkedRefs} />}
       <LinkedRefs groups={payload.linkedRefs} currentPageId={payload.page.id} />
     </PageShell>
+  );
+}
+
+function PagePinMenu({ pageId }: { pageId: string }) {
+  // Store state makes pin and move operations update the menu optimistically.
+  const page = useStore((s) => s.pages.find((p) => p.id === pageId));
+  const pinFolders = useStore((s) => s.pinFolders);
+  const pinned = page?.pinnedOrderKey != null;
+  const pinLocation = pinned
+    ? page.pinnedFolderId
+      ? `folder:${page.pinnedFolderId}`
+      : 'top-level'
+    : '';
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className={
+            'size-7 ' + (pinned ? 'text-foreground' : 'text-muted-foreground')
+          }
+          title={pinned ? 'Change pin location' : 'Pin to sidebar'}
+        >
+          <Pin className={pinned ? 'fill-current' : ''} />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>Pin to</DropdownMenuLabel>
+        <DropdownMenuRadioGroup value={pinLocation}>
+          <DropdownMenuRadioItem
+            value="top-level"
+            onSelect={() => actions.pinPageToFolder(pageId, null)}
+          >
+            <Pin />
+            Top level
+          </DropdownMenuRadioItem>
+          {pinFolders.map((folder) => (
+            <DropdownMenuRadioItem
+              key={folder.id}
+              value={`folder:${folder.id}`}
+              onSelect={() => actions.pinPageToFolder(pageId, folder.id)}
+            >
+              <Folder />
+              {folder.name}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+        {pinned && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => actions.togglePagePinned(pageId)}>
+              <PinOff />
+              Unpin
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

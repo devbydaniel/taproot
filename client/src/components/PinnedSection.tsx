@@ -30,8 +30,8 @@ import { Link } from 'wouter';
 import {
   createPinFolder,
   deletePinFolder,
-  movePageToPinFolder,
   movePinnedItem,
+  pinPageToFolder,
   renamePinFolder,
   setPinFolderCollapsed,
   togglePagePinned,
@@ -220,7 +220,7 @@ function PageRow({
                       <DropdownMenuItem
                         key={folder.id}
                         disabled={folder.id === folderId}
-                        onSelect={() => movePageToPinFolder(page.id, folder.id)}
+                        onSelect={() => pinPageToFolder(page.id, folder.id)}
                       >
                         <Folder />
                         {folder.name}
@@ -232,7 +232,7 @@ function PageRow({
               {folderId !== null && (
                 // dragging out is impossible when no top-level row sits below
                 <DropdownMenuItem
-                  onSelect={() => movePageToPinFolder(page.id, null)}
+                  onSelect={() => pinPageToFolder(page.id, null)}
                 >
                   Move out of folder
                 </DropdownMenuItem>
