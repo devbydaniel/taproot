@@ -1,5 +1,5 @@
 import {
-  extractWikilinks,
+  extractPageReferences,
   isPinFolderOp,
   parseTask,
   type Op,
@@ -30,10 +30,10 @@ export function ensurePage(store: Store, title: string): Page {
   return page;
 }
 
-/** Re-derive the refs index for one block from the [[wikilinks]] in its text. */
+/** Re-derive the refs index for one block from the page references in its text. */
 function updateRefs(store: Store, blockId: string, text: string) {
   store.db.delete(refs).where(eq(refs.blockId, blockId)).run();
-  for (const title of extractWikilinks(text)) {
+  for (const title of extractPageReferences(text)) {
     const page = ensurePage(store, title);
     store.db
       .insert(refs)
@@ -71,23 +71,57 @@ function updateTaskIndex(store: Store, blockId: string, text: string) {
     .run();
 }
 
+type TextBlock = { id: string; text: string };
+
+/** Rebuild refs and create missing targets without an N+1 page lookup. */
+function reindexRefs(store: Store, textBlocks: TextBlock[]) {
+  const pageIds = new Map(
+    (
+      store.sqlite.prepare('SELECT id, title FROM pages').all() as {
+        id: string;
+        title: string;
+      }[]
+    ).map((page) => [page.title, page.id]),
+  );
+  const references = textBlocks.flatMap((block) =>
+    extractPageReferences(block.text).map((title) => ({
+      blockId: block.id,
+      title,
+    })),
+  );
+  const insertPage = store.sqlite.prepare(
+    'INSERT INTO pages (id, title, created_at) VALUES (?, ?, ?)',
+  );
+  for (const { title } of references) {
+    if (pageIds.has(title)) continue;
+    const id = nanoid();
+    insertPage.run(id, title, Date.now());
+    pageIds.set(title, id);
+  }
+
+  store.sqlite.prepare('DELETE FROM refs').run();
+  const insertRef = store.sqlite.prepare(
+    'INSERT INTO refs (block_id, page_id) VALUES (?, ?)',
+  );
+  for (const { blockId, title } of references) {
+    insertRef.run(blockId, pageIds.get(title)!);
+  }
+}
+
 /**
- * Reconcile the task index with block texts (startup backfill so pre-task
- * databases heal). Diffs against the existing index instead of rebuilding,
- * so completedAt timestamps survive restarts.
+ * Reconcile the derived indexes with text blocks at startup. Refs can be
+ * rebuilt wholesale; tasks are diffed so completedAt survives restarts.
+ * The exported name is retained for callers from before refs needed backfill.
  */
 export function reindexTasks(store: Store) {
   store.sqlite.transaction(() => {
-    // narrow SQL-side superset of what parseTask accepts ('TODOx…' slips
-    // through the LIKE but is rejected below) — parseTask stays the single
-    // definition of "what is a task"
-    const candidates = store.sqlite
-      .prepare(
-        `SELECT id, text FROM blocks WHERE text LIKE 'TODO%' OR text LIKE 'DONE%'`,
-      )
-      .all() as { id: string; text: string }[];
+    const textBlocks = store.sqlite
+      .prepare("SELECT id, text FROM blocks WHERE kind = 'text'")
+      .all() as TextBlock[];
+    reindexRefs(store, textBlocks);
+
     const parsed = new Map<string, TaskState>();
-    for (const { id, text } of candidates) {
+    for (const { id, text } of textBlocks) {
       const task = parseTask(text);
       if (task) parsed.set(id, task.state);
     }

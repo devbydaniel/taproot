@@ -59,7 +59,9 @@ const agentBlockNodeSchema: z.ZodType<AgentBlockNode> = z
       id: z.string(),
       text: z
         .string()
-        .describe('Block text — [[wikilinks]] and TODO/DONE markers verbatim'),
+        .describe(
+          'Block text — [[wikilinks]], #tags, and TODO/DONE markers verbatim',
+        ),
       kind: z
         .enum(['drawing', 'doc'])
         .optional()
@@ -264,7 +266,7 @@ const inputNodeSchema: z.ZodType<AgentInputNode> = z
       text: z
         .string()
         .describe(
-          "Single line of block text. May contain [[Page Title]] wikilinks (linked pages auto-create), a leading 'TODO ' or 'DONE ' task marker, and an <every ...> recurrence rule (e.g. '<every 3 days>', '<every monday>').",
+          "Single line of block text. May contain [[Page Title]] wikilinks, #tag or #[[multi word]] tags (linked pages auto-create), a leading 'TODO ' or 'DONE ' task marker, and an <every ...> recurrence rule (e.g. '<every 3 days>', '<every monday>').",
         ),
       children: z
         .array(inputNodeSchema)

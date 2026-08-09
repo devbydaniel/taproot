@@ -55,10 +55,8 @@ describe('taskDueDate', () => {
     expect(taskDueDate('TODO fix [[Project]]')).toBeNull();
   });
 
-  it('returns the first daily link in text order', () => {
-    expect(taskDueDate('TODO x [[2026-08-02]] [[2026-08-01]]')).toBe(
-      '2026-08-02',
-    );
+  it('returns the first daily page reference in text order', () => {
+    expect(taskDueDate('TODO x #2026-08-02 [[2026-08-01]]')).toBe('2026-08-02');
   });
 
   it('skips page links before the daily link', () => {
@@ -76,9 +74,12 @@ describe('taskHasPageLink', () => {
     expect(taskHasPageLink('TODO x [[2026-07-15]]')).toBe(false);
   });
 
-  it('is true for non-daily links, including impossible dates', () => {
+  it('is true for non-daily links and tags, including impossible dates', () => {
     expect(taskHasPageLink('TODO x [[Project]]')).toBe(true);
-    expect(taskHasPageLink('TODO x [[Project]] [[2026-07-15]]')).toBe(true);
+    expect(taskHasPageLink('TODO x #project')).toBe(true);
+    expect(taskHasPageLink('TODO x #[[Big Project]] [[2026-07-15]]')).toBe(
+      true,
+    );
     expect(taskHasPageLink('TODO x [[2026-02-30]]')).toBe(true);
   });
 });
@@ -94,6 +95,15 @@ describe('rescheduleTask', () => {
     expect(
       rescheduleTask('TODO [[Project]] [[2026-08-01]]', '2026-08-02'),
     ).toBe('TODO [[Project]] [[2026-08-02]]');
+  });
+
+  it('rewrites dates represented as tags without changing their markup', () => {
+    expect(rescheduleTask('TODO x #2026-08-01', '2026-08-05')).toBe(
+      'TODO x #2026-08-05',
+    );
+    expect(rescheduleTask('TODO x #[[2026-08-01]]', '2026-08-05')).toBe(
+      'TODO x #[[2026-08-05]]',
+    );
   });
 
   it('appends a link when the task is undated', () => {
@@ -122,9 +132,12 @@ describe('assignTaskPage', () => {
     expect(assignTaskPage('TODO ', 'Groceries')).toBe('TODO [[Groceries]]');
   });
 
-  it('is a no-op when the page is already linked, case-insensitively', () => {
+  it('is a no-op when the page is already referenced, case-insensitively', () => {
     expect(assignTaskPage('TODO x [[Groceries]]', 'groceries')).toBe(
       'TODO x [[Groceries]]',
+    );
+    expect(assignTaskPage('TODO x #groceries', 'Groceries')).toBe(
+      'TODO x #groceries',
     );
   });
 

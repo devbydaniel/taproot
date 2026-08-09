@@ -3,7 +3,7 @@ import {
   findRecurrence,
   segmentText,
 } from '@taproot/shared';
-import { Repeat } from 'lucide-react';
+import { Hash, Repeat } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -62,7 +62,7 @@ function TextRun({ value }: { value: string }) {
   );
 }
 
-/** Rendered (non-editing) block text: wikilinks and URLs become clickable, markup hidden. */
+/** Rendered block text: page references and URLs become clickable, markup hidden. */
 export function StaticText({
   text,
   className,
@@ -91,6 +91,20 @@ export function StaticText({
           return <TextRun key={index} value={segment.value} />;
         if (segment.type === 'url')
           return <UrlLink key={index} url={segment.url} />;
+        if (segment.type === 'tag') {
+          return (
+            <a
+              key={index}
+              href={`/p/${encodeURIComponent(segment.title)}`}
+              onClick={(event) => void openPage(event, segment.title)}
+              title={segment.raw}
+              className="mx-0.5 inline-flex cursor-pointer select-none items-center gap-0.5 rounded-sm bg-muted px-1 align-[1px] text-[11px] leading-4 text-muted-foreground/80 hover:bg-accent hover:text-accent-foreground"
+            >
+              <Hash className="h-2.5 w-2.5" strokeWidth={2.5} />
+              {segment.title}
+            </a>
+          );
+        }
         // daily links display as Today/Tomorrow/"Wed, Jul 15"; the stored
         // text keeps the ISO title, hover reveals it
         const daily = dailyDisplayLabel(segment.title);

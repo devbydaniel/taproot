@@ -247,7 +247,7 @@ const routes = {
     path: '/block/{id}',
     operationId: 'updateBlockText',
     summary:
-      "Replace a block's text (wikilinks and task markers re-index automatically)",
+      "Replace a block's text (wikilinks, tags, and task markers re-index automatically)",
     request: { params: blockIdParams, body: jsonBody(updateTextRequestSchema) },
     responses: {
       200: jsonResponse(agentUpdateResultSchema, 'The updated block'),
@@ -301,7 +301,7 @@ const apiDescription = `Taproot is an outliner: pages hold a tree of single-line
 
 Concepts:
 - Page titles are unique. Daily (journal) pages are titled YYYY-MM-DD.
-- [[Page Title]] inside block text links to that page (auto-creating it) and makes the block appear in the target page's linked references.
+- [[Page Title]], #tag, and #[[multi word]] inside block text link to that page (auto-creating it) and make the block appear in the target page's linked references. Tags render as chips.
 - A block is a task iff its text starts with 'TODO ' or 'DONE '. Prefer the task endpoint over editing the marker yourself.
 - An <every ...> token in a task makes it recurring; completing it via the task endpoint spawns the next instance.
 - Blocks are ordered by their array position; ids come back from every read and write — keep them for follow-up edits.

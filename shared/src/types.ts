@@ -62,7 +62,7 @@ export interface TaskListItem {
   block: Block;
   /** the page the block lives on */
   page: Page;
-  /** first [[YYYY-MM-DD]] wikilink in the block text; null when undated */
+  /** first YYYY-MM-DD page reference in the block text; null when undated */
   dueDate: string | null;
   /** text links to at least one non-daily page */
   hasPageLink: boolean;

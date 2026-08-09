@@ -1,6 +1,6 @@
 import { isDailyTitle } from './daily.js';
 import type { Block, TaskListItem } from './types.js';
-import { findWikilinks } from './wikilinks.js';
+import { findPageReferences } from './wikilinks.js';
 
 export type TaskState = 'TODO' | 'DONE';
 
@@ -29,21 +29,25 @@ export function cycleTaskState(text: string): string {
   return withTaskState(text, parsed.state === 'TODO' ? 'DONE' : null);
 }
 
-/** First [[YYYY-MM-DD]] wikilink in the text, with its span; the task's date rule. */
-export function firstDailyLink(
-  text: string,
-): { title: string; from: number; to: number } | null {
-  return findWikilinks(text).find((link) => isDailyTitle(link.title)) ?? null;
+/** First YYYY-MM-DD page reference in the text, with its spans; the task's date rule. */
+export function firstDailyLink(text: string) {
+  return (
+    findPageReferences(text).find((reference) =>
+      isDailyTitle(reference.title),
+    ) ?? null
+  );
 }
 
-/** A task's due date: the first daily-title wikilink in its own text. */
+/** A task's due date: the first daily-title page reference in its own text. */
 export function taskDueDate(text: string): string | null {
   return firstDailyLink(text)?.title ?? null;
 }
 
 /** True when the text links to at least one non-daily page. */
 export function taskHasPageLink(text: string): boolean {
-  return findWikilinks(text).some((link) => !isDailyTitle(link.title));
+  return findPageReferences(text).some(
+    (reference) => !isDailyTitle(reference.title),
+  );
 }
 
 /**
@@ -60,7 +64,7 @@ export function rescheduleTask(text: string, title: string | null): string {
       .trimEnd();
   }
   if (!link) return `${text} [[${title}]]`;
-  return text.slice(0, link.from + 2) + title + text.slice(link.to - 2);
+  return text.slice(0, link.titleFrom) + title + text.slice(link.titleTo);
 }
 
 /**
@@ -69,8 +73,8 @@ export function rescheduleTask(text: string, title: string | null): string {
  * result as an ordinary update_text op.
  */
 export function assignTaskPage(text: string, title: string): string {
-  const linked = findWikilinks(text).some(
-    (link) => link.title.toLowerCase() === title.toLowerCase(),
+  const linked = findPageReferences(text).some(
+    (reference) => reference.title.toLowerCase() === title.toLowerCase(),
   );
   if (linked) return text;
   const base = text.trimEnd();

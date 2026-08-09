@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { extractWikilinks, findWikilinks, segmentText } from './wikilinks.js';
+import {
+  extractPageReferences,
+  extractWikilinks,
+  findPageReferences,
+  findWikilinks,
+  segmentText,
+} from './wikilinks.js';
 
 describe('extractWikilinks', () => {
   it('extracts unique trimmed titles', () => {
@@ -16,6 +22,62 @@ describe('extractWikilinks', () => {
 
   it('returns empty for plain text', () => {
     expect(extractWikilinks('no links here')).toEqual([]);
+  });
+
+  it('does not treat multi-word tags as wikilinks', () => {
+    expect(extractWikilinks('#[[Tagged Page]] [[Linked Page]]')).toEqual([
+      'Linked Page',
+    ]);
+  });
+});
+
+describe('page references', () => {
+  it('extracts single-word and multi-word tags alongside wikilinks', () => {
+    expect(
+      extractPageReferences(
+        '#project #[[Project Alpha]] [[Project Alpha]] #two-words',
+      ),
+    ).toEqual(['project', 'Project Alpha', 'two-words']);
+  });
+
+  it('supports unicode tags and ignores hashes inside words and URLs', () => {
+    expect(
+      extractPageReferences(
+        '#café #日本語 word#suffix https://example.com/#fragment',
+      ),
+    ).toEqual(['café', '日本語']);
+  });
+
+  it('returns tag markup and title spans', () => {
+    expect(findPageReferences('#tag #[[ multi word ]] [[Page]]')).toEqual([
+      {
+        type: 'tag',
+        title: 'tag',
+        raw: '#tag',
+        from: 0,
+        to: 4,
+        titleFrom: 1,
+        titleTo: 4,
+      },
+      {
+        type: 'tag',
+        title: 'multi word',
+        raw: '#[[ multi word ]]',
+        from: 5,
+        to: 22,
+        titleFrom: 8,
+        titleTo: 20,
+      },
+      {
+        type: 'link',
+        title: 'Page',
+        raw: '[[Page]]',
+        from: 23,
+        to: 31,
+        titleFrom: 25,
+        titleTo: 29,
+      },
+    ]);
   });
 });
 
@@ -46,6 +108,15 @@ describe('segmentText', () => {
       { type: 'link', title: 'A', raw: '[[A]]' },
       { type: 'link', title: 'B', raw: '[[B]]' },
       { type: 'text', value: '!' },
+    ]);
+  });
+
+  it('splits single-word and multi-word tags from text', () => {
+    expect(segmentText('use #one and #[[Two Words]]')).toEqual([
+      { type: 'text', value: 'use ' },
+      { type: 'tag', title: 'one', raw: '#one' },
+      { type: 'text', value: ' and ' },
+      { type: 'tag', title: 'Two Words', raw: '#[[Two Words]]' },
     ]);
   });
 

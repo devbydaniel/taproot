@@ -48,6 +48,56 @@ describe('applyOps', () => {
     expect(payload?.linkedRefs[0]?.blocks.map((b) => b.id)).toEqual(['b1']);
   });
 
+  it('creates pages and linked references from tags', () => {
+    const page = setupPage('Home');
+    applyOps(store, [
+      {
+        type: 'create_block',
+        id: 'b1',
+        pageId: page.id,
+        parentId: null,
+        orderKey: 'a0',
+        text: 'work on #project and #[[Project Alpha]]',
+      },
+    ]);
+
+    expect(listPages(store).map((item) => item.title)).toEqual(
+      expect.arrayContaining(['project', 'Project Alpha']),
+    );
+    for (const title of ['project', 'Project Alpha']) {
+      const target = ensurePage(store, title);
+      expect(
+        getPagePayload(store, target.id)?.linkedRefs[0]?.blocks.map(
+          (block) => block.id,
+        ),
+      ).toEqual(['b1']);
+    }
+  });
+
+  it('backfills tags in existing blocks when derived indexes are rebuilt', () => {
+    const page = setupPage('Home');
+    applyOps(store, [
+      {
+        type: 'create_block',
+        id: 'b1',
+        pageId: page.id,
+        parentId: null,
+        orderKey: 'a0',
+        text: 'legacy text',
+      },
+    ]);
+    store.sqlite
+      .prepare('UPDATE blocks SET text = ? WHERE id = ?')
+      .run('#legacy-tag', 'b1');
+
+    reindexTasks(store);
+
+    const target = ensurePage(store, 'legacy-tag');
+    expect(getPagePayload(store, target.id)?.linkedRefs[0]?.rootIds).toEqual([
+      'b1',
+    ]);
+  });
+
   it('updates refs when text changes', () => {
     const page = setupPage('Home');
     applyOps(store, [

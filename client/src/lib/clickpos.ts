@@ -45,9 +45,9 @@ export function renderedOffsetFromPoint(
 }
 
 /**
- * Map an offset in the rendered text (wikilinks shown as bare titles) back to
- * an offset in the raw text (with [[ ]] markup). Clicks inside a link map to
- * the end of the raw link.
+ * Map an offset in rendered text (page references shown as bare titles) back
+ * to an offset in raw text (including link/tag markup). Clicks inside a page
+ * reference map to the end of its raw form.
  */
 export function renderedToRaw(rawText: string, renderedOffset: number): number {
   let rendered = 0;

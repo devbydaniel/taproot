@@ -10,7 +10,7 @@ import { EditorState, Prec } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
 import {
   cycleTaskState,
-  findWikilinks,
+  findPageReferences,
   shiftDailyTitle,
   suggestDailyTitles,
 } from '@taproot/shared';
@@ -139,19 +139,28 @@ export function BlockEditor({
       );
     };
 
-    // Alt-↑/↓ on a [[YYYY-MM-DD]] link reschedules it by a day; the
-    // updateListener turns the edit into a normal update_text op
+    // Alt-↑/↓ on a YYYY-MM-DD page reference reschedules it by a day;
+    // the updateListener turns the edit into a normal update_text op
     const shiftDateAtCursor = (view: EditorView, days: number): boolean => {
       if (completionStatus(view.state) === 'active') return false;
       const head = view.state.selection.main.head;
-      for (const link of findWikilinks(view.state.doc.toString())) {
-        if (head < link.from || head > link.to) continue;
-        const shifted = shiftDailyTitle(link.title, days);
+      for (const reference of findPageReferences(view.state.doc.toString())) {
+        if (head < reference.from || head > reference.to) continue;
+        const shifted = shiftDailyTitle(reference.title, days);
         if (!shifted) return false;
         view.dispatch({
-          changes: { from: link.from + 2, to: link.to - 2, insert: shifted },
+          changes: {
+            from: reference.titleFrom,
+            to: reference.titleTo,
+            insert: shifted,
+          },
           selection: {
-            anchor: Math.min(head, link.from + 2 + shifted.length + 2),
+            anchor: Math.min(
+              head,
+              reference.titleFrom +
+                shifted.length +
+                (reference.to - reference.titleTo),
+            ),
           },
         });
         return true;

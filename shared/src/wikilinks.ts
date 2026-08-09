@@ -1,24 +1,68 @@
-const WIKILINK = /\[\[([^[\]\n]+?)\]\]/g;
+const PAGE_REFERENCE =
+  /(?<![\p{L}\p{N}_/#=?&])#(?:\[\[([^[\]\n]+?)\]\]|([\p{L}\p{N}_](?:[\p{L}\p{N}_-]*[\p{L}\p{N}_])?))|\[\[([^[\]\n]+?)\]\]/gu;
+
+export interface PageReference {
+  type: 'link' | 'tag';
+  title: string;
+  raw: string;
+  from: number;
+  to: number;
+  /** Span of the title itself, excluding [[...]], #[[...]], or # markup. */
+  titleFrom: number;
+  titleTo: number;
+}
+
+/** All page-reference spans: [[links]], #tags, and #[[multi word tags]]. */
+export function findPageReferences(text: string): PageReference[] {
+  const references: PageReference[] = [];
+  for (const match of text.matchAll(PAGE_REFERENCE)) {
+    const multiTagTitle = match[1];
+    const singleTagTitle = match[2];
+    const linkTitle = match[3];
+    const type = linkTitle === undefined ? 'tag' : 'link';
+    const untrimmedTitle = multiTagTitle ?? singleTagTitle ?? linkTitle!;
+    const title = untrimmedTitle.trim();
+    if (!title) continue;
+    const markupLength =
+      type === 'link' ? 2 : multiTagTitle === undefined ? 1 : 3;
+    references.push({
+      type,
+      title,
+      raw: match[0],
+      from: match.index,
+      to: match.index + match[0].length,
+      titleFrom: match.index + markupLength,
+      titleTo: match.index + markupLength + untrimmedTitle.length,
+    });
+  }
+  return references;
+}
 
 /** Unique, trimmed page titles referenced via [[...]] in the given text. */
 export function extractWikilinks(text: string): string[] {
-  const titles = new Set<string>();
-  for (const match of text.matchAll(WIKILINK)) {
-    const title = match[1]!.trim();
-    if (title) titles.add(title);
-  }
-  return [...titles];
+  return [
+    ...new Set(
+      findPageReferences(text)
+        .filter((reference) => reference.type === 'link')
+        .map((reference) => reference.title),
+    ),
+  ];
+}
+
+/** Unique page titles referenced by wikilinks or tags in the given text. */
+export function extractPageReferences(text: string): string[] {
+  return [
+    ...new Set(findPageReferences(text).map((reference) => reference.title)),
+  ];
 }
 
 /** All [[...]] spans with document positions, for editor features that rewrite links in place. */
 export function findWikilinks(
   text: string,
 ): { title: string; from: number; to: number }[] {
-  return [...text.matchAll(WIKILINK)].map((match) => ({
-    title: match[1]!.trim(),
-    from: match.index,
-    to: match.index + match[0].length,
-  }));
+  return findPageReferences(text)
+    .filter((reference) => reference.type === 'link')
+    .map(({ title, from, to }) => ({ title, from, to }));
 }
 
 const URL_RE = /https?:\/\/\S+/g;
@@ -27,6 +71,7 @@ const TRAILING_PUNCT = /[.,;:!?"')\]]+$/;
 export type TextSegment =
   | { type: 'text'; value: string }
   | { type: 'link'; title: string; raw: string }
+  | { type: 'tag'; title: string; raw: string }
   | { type: 'url'; url: string };
 
 /** Split plain text into text and URL segments (helper for segmentText). */
@@ -45,15 +90,19 @@ function segmentUrls(text: string): TextSegment[] {
   return segments;
 }
 
-/** Split text into plain, [[wikilink]], and URL segments, for rendering. */
+/** Split text into plain, page-reference, and URL segments, for rendering. */
 export function segmentText(text: string): TextSegment[] {
   const segments: TextSegment[] = [];
   let last = 0;
-  for (const match of text.matchAll(WIKILINK)) {
-    const index = match.index;
-    if (index > last) segments.push(...segmentUrls(text.slice(last, index)));
-    segments.push({ type: 'link', title: match[1]!.trim(), raw: match[0] });
-    last = index + match[0].length;
+  for (const reference of findPageReferences(text)) {
+    if (reference.from > last)
+      segments.push(...segmentUrls(text.slice(last, reference.from)));
+    segments.push({
+      type: reference.type,
+      title: reference.title,
+      raw: reference.raw,
+    });
+    last = reference.to;
   }
   if (last < text.length) segments.push(...segmentUrls(text.slice(last)));
   return segments;

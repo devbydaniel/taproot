@@ -23,8 +23,8 @@ export function LinkedRefs({
       </h2>
       {groups.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          No linked references yet. Mention this page as a [[wikilink]] anywhere
-          and the bullet will show up here.
+          No linked references yet. Mention this page as a [[wikilink]] or #tag
+          anywhere and the bullet will show up here.
         </p>
       ) : (
         groups.map((group) => (

@@ -17,7 +17,7 @@ const dbPath =
   fileURLToPath(new URL('../../data/taproot.db', import.meta.url));
 const store = createStore(dbPath);
 seedIfEmpty(store);
-reindexTasks(store); // heal databases created before the task index existed
+reindexTasks(store); // heal derived indexes after syntax/index changes
 
 const app = new Hono();
 // eslint-disable-next-line @typescript-eslint/unbound-method -- plain closures from the factory, not `this`-bound methods
