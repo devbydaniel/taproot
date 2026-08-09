@@ -23,7 +23,8 @@
     "prepare": "husky"
   },
   "overrides": {
-    "lodash-es": "^4.18.1"
+    "lodash-es": "^4.18.1",
+    "nanoid": "^5.0.9"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
