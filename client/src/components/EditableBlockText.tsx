@@ -1,10 +1,12 @@
-import { parseTask, type Block } from '@taproot/shared';
+import { findYouTubeVideo, parseTask, type Block } from '@taproot/shared';
 import { useRef } from 'react';
 import { renderedOffsetFromPoint, renderedToRaw } from '@/lib/clickpos';
 import type { OutlineCtx } from '@/lib/outline';
+import { cn } from '@/lib/utils';
 import { useStore } from '@/store';
 import { BlockContent } from './BlockContent';
 import { BlockEditor } from './BlockEditor';
+import { YouTubePreview } from './YouTubePreview';
 
 /**
  * Rendered block text that swaps to the CodeMirror editor when focused,
@@ -28,6 +30,7 @@ export function EditableBlockText({
   );
   const setFocus = useStore((s) => s.setFocus);
   const contentRef = useRef<HTMLDivElement>(null);
+  const video = isFocused ? null : findYouTubeVideo(block.text);
 
   const focusAtPoint = (event: React.MouseEvent) => {
     if ((event.target as Element).closest('a,button')) return;
@@ -50,21 +53,24 @@ export function EditableBlockText({
   };
 
   return (
-    <div
-      ref={contentRef}
-      className="min-w-0 flex-1 cursor-text leading-6"
-      onClick={isFocused ? undefined : focusAtPoint}
-    >
-      {isFocused ? (
-        <BlockEditor
-          blockId={block.id}
-          ctx={ctx}
-          variant={variant}
-          origin={origin}
-        />
-      ) : (
-        <BlockContent block={block} />
-      )}
+    <div className="group/youtube relative min-w-0 flex-1 leading-6">
+      <div
+        ref={contentRef}
+        className={cn('cursor-text', video && 'pr-7')}
+        onClick={isFocused ? undefined : focusAtPoint}
+      >
+        {isFocused ? (
+          <BlockEditor
+            blockId={block.id}
+            ctx={ctx}
+            variant={variant}
+            origin={origin}
+          />
+        ) : (
+          <BlockContent block={block} />
+        )}
+      </div>
+      {video && <YouTubePreview key={video.id} video={video} />}
     </div>
   );
 }

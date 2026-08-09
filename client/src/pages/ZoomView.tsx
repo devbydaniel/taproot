@@ -1,4 +1,4 @@
-import type { ZoomPayload } from '@taproot/shared';
+import { findYouTubeVideo, type ZoomPayload } from '@taproot/shared';
 import { useEffect, useState } from 'react';
 import * as actions from '@/actions';
 import { BlockEditor } from '@/components/BlockEditor';
@@ -8,6 +8,7 @@ import { DocBlock } from '@/components/doc/DocBlock';
 import { DrawingBlock } from '@/components/drawing/DrawingBlock';
 import { OutlineTree } from '@/components/OutlineTree';
 import { StaticText } from '@/components/StaticText';
+import { YouTubePreview } from '@/components/YouTubePreview';
 import { api } from '@/lib/api';
 import { installMergedBlocks } from '@/lib/offline/sync';
 import { hasChildren, visibleOrder, type OutlineCtx } from '@/lib/outline';
@@ -47,7 +48,12 @@ export function ZoomView({ id }: { id: string }) {
   if (!payload) return null;
 
   const ctx: OutlineCtx = { pageId: payload.page.id, rootParentId: id };
-  const titleText = liveBlock?.text ?? payload.block.text;
+  const rootBlock = liveBlock ?? payload.block;
+  const titleText = rootBlock.text;
+  const video =
+    rootBlock.kind === 'text' && !isTitleFocused
+      ? findYouTubeVideo(titleText)
+      : null;
 
   const clickBelow = () => {
     const { blocks } = useStore.getState();
@@ -71,19 +77,25 @@ export function ZoomView({ id }: { id: string }) {
       ]}
     >
       <div className="mb-6">
-        {(liveBlock ?? payload.block).kind === 'drawing' ? (
-          <DrawingBlock block={liveBlock ?? payload.block} ctx={ctx} />
-        ) : (liveBlock ?? payload.block).kind === 'doc' ? (
-          <DocBlock block={liveBlock ?? payload.block} ctx={ctx} />
+        {rootBlock.kind === 'drawing' ? (
+          <DrawingBlock block={rootBlock} ctx={ctx} />
+        ) : rootBlock.kind === 'doc' ? (
+          <DocBlock block={rootBlock} ctx={ctx} />
         ) : isTitleFocused ? (
           <BlockEditor blockId={id} ctx={ctx} variant="title" />
         ) : (
-          <h1
-            className="cursor-text text-lg font-semibold tracking-tight"
-            onClick={() => setFocus({ blockId: id, cursor: 'end' })}
-          >
-            <StaticText text={titleText} />
-          </h1>
+          <div className="group/youtube relative">
+            <h1
+              className={
+                'cursor-text text-lg font-semibold tracking-tight' +
+                (video ? ' pr-7' : '')
+              }
+              onClick={() => setFocus({ blockId: id, cursor: 'end' })}
+            >
+              <StaticText text={titleText} />
+            </h1>
+            {video && <YouTubePreview key={video.id} video={video} />}
+          </div>
         )}
       </div>
 
