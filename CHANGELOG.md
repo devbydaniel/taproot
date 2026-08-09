@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.16.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.15.0...taproot-v0.16.0) (2026-08-09)
+
+
+### Features
+
+* add page tags ([ce8ac17](https://github.com/devbydaniel/taproot/commit/ce8ac17a88f097b609b3bead88b4e1f7623e5a34))
+* **client:** add expandable YouTube previews ([0e84b83](https://github.com/devbydaniel/taproot/commit/0e84b833f350b243cdebf0e874c695e1177a72e3))
+* **client:** choose pin destination from page ([1aad931](https://github.com/devbydaniel/taproot/commit/1aad931e9b68fb87ba05c22309027f7191ae68b0))
+
+
+### Bug Fixes
+
+* **deps:** override vulnerable nanoid versions ([1c45cf6](https://github.com/devbydaniel/taproot/commit/1c45cf69f1be6f412ca2b17a156a096c0c4c3377))
+
 ## [0.15.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.14.0...taproot-v0.15.0) (2026-08-07)
 
 
