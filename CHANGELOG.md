@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.16.0...taproot-v0.17.0) (2026-08-11)
+
+
+### Features
+
+* **client:** filter page items by assigned references ([327733c](https://github.com/devbydaniel/taproot/commit/327733ca1e2a73ebdf3eed426d229f7f71c40591))
+
 ## [0.16.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.15.0...taproot-v0.16.0) (2026-08-09)
 
 
