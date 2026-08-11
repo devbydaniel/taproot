@@ -136,8 +136,17 @@ export function PageView({ id }: { id: string }) {
         </button>
       )}
       <div className="h-24 cursor-text" onClick={clickBelow} />
-      {!isDaily && <PageTasks groups={payload.linkedRefs} />}
-      <LinkedRefs groups={payload.linkedRefs} currentPageId={payload.page.id} />
+      {!isDaily && (
+        <PageTasks
+          groups={payload.linkedRefs}
+          currentPageTitle={payload.page.title}
+        />
+      )}
+      <LinkedRefs
+        groups={payload.linkedRefs}
+        currentPageId={payload.page.id}
+        currentPageTitle={payload.page.title}
+      />
     </PageShell>
   );
 }

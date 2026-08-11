@@ -3,6 +3,7 @@ export * from './dateSuggest.js';
 export * from './ops.js';
 export * from './pinTree.js';
 export * from './recurrence.js';
+export * from './referenceFilter.js';
 export * from './tasks.js';
 export * from './types.js';
 export * from './wikilinks.js';

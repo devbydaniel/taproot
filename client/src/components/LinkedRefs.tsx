@@ -1,7 +1,16 @@
-import type { Block, LinkedRefGroup } from '@taproot/shared';
+import {
+  collectAssignedReferenceTitles,
+  matchesAssignedReferenceFilter,
+  type Block,
+  type LinkedRefGroup,
+} from '@taproot/shared';
 import { useMemo } from 'react';
 import type { OutlineCtx } from '@/lib/outline';
 import { useStore } from '@/store';
+import {
+  AssignedReferenceFilter,
+  useAssignedReferenceFilter,
+} from './AssignedReferenceFilter';
 import { BlockContent } from './BlockContent';
 import { RefBreadcrumb } from './Breadcrumb';
 import { BulletLink } from './Bullet';
@@ -10,24 +19,69 @@ import { EditableBlockText } from './EditableBlockText';
 export function LinkedRefs({
   groups,
   currentPageId,
+  currentPageTitle,
 }: {
   groups: LinkedRefGroup[];
   currentPageId: string;
+  currentPageTitle: string;
 }) {
-  const count = groups.reduce((sum, group) => sum + group.rootIds.length, 0);
+  const storeBlocks = useStore((s) => s.blocks);
+  const rootBlock = (group: LinkedRefGroup, id: string) =>
+    storeBlocks[id] ?? group.blocks.find((block) => block.id === id);
+  const rootTexts = groups.flatMap((group) =>
+    group.rootIds.flatMap((id) => {
+      const block = rootBlock(group, id);
+      return block ? [block.text] : [];
+    }),
+  );
+  const options = collectAssignedReferenceTitles(rootTexts, currentPageTitle);
+  const { selectedTitles, setSelectedTitles } = useAssignedReferenceFilter(
+    options,
+    currentPageTitle,
+  );
+  const visibleGroups = groups.flatMap((group) => {
+    const rootIds = group.rootIds.filter((id) => {
+      const block = rootBlock(group, id);
+      return (
+        block !== undefined &&
+        matchesAssignedReferenceFilter(
+          block.text,
+          currentPageTitle,
+          selectedTitles,
+        )
+      );
+    });
+    return rootIds.length > 0 ? [{ ...group, rootIds }] : [];
+  });
+  const count = visibleGroups.reduce(
+    (sum, group) => sum + group.rootIds.length,
+    0,
+  );
+
   return (
     <section className="mt-16 border-t pt-6 pb-24">
-      <h2 className="mb-4 text-sm font-semibold tracking-wide text-muted-foreground uppercase">
-        Linked References
-        {count > 0 && <span className="ml-2 font-normal">{count}</span>}
+      <h2 className="mb-4 flex items-center text-sm font-semibold tracking-wide text-muted-foreground uppercase">
+        <span>
+          Linked References
+          {count > 0 && <span className="ml-2 font-normal">{count}</span>}
+        </span>
+        <AssignedReferenceFilter
+          options={options}
+          selectedTitles={selectedTitles}
+          onSelectedTitlesChange={setSelectedTitles}
+        />
       </h2>
       {groups.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No linked references yet. Mention this page as a [[wikilink]] or #tag
           anywhere and the bullet will show up here.
         </p>
+      ) : visibleGroups.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          No linked references match this filter.
+        </p>
       ) : (
-        groups.map((group) => (
+        visibleGroups.map((group) => (
           <RefGroupCard
             key={group.page.id}
             group={group}

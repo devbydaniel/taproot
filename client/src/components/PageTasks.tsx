@@ -1,6 +1,16 @@
-import { parseTask, type Block, type LinkedRefGroup } from '@taproot/shared';
+import {
+  collectAssignedReferenceTitles,
+  matchesAssignedReferenceFilter,
+  parseTask,
+  type Block,
+  type LinkedRefGroup,
+} from '@taproot/shared';
 import { useRef } from 'react';
 import { useStore } from '@/store';
+import {
+  AssignedReferenceFilter,
+  useAssignedReferenceFilter,
+} from './AssignedReferenceFilter';
 import { BlockContent } from './BlockContent';
 
 /**
@@ -8,7 +18,13 @@ import { BlockContent } from './BlockContent';
  * is "was open at any point while this view was mounted": checking a task
  * strikes it through but keeps the row until the page is left or reloaded.
  */
-export function PageTasks({ groups }: { groups: LinkedRefGroup[] }) {
+export function PageTasks({
+  groups,
+  currentPageTitle,
+}: {
+  groups: LinkedRefGroup[];
+  currentPageTitle: string;
+}) {
   const storeBlocks = useStore((s) => s.blocks);
   const everOpen = useRef(new Set<string>());
 
@@ -26,23 +42,54 @@ export function PageTasks({ groups }: { groups: LinkedRefGroup[] }) {
   const rows = roots.filter(
     (block) => everOpen.current.has(block.id) && parseTask(block.text),
   );
+  const options = collectAssignedReferenceTitles(
+    rows.map((block) => block.text),
+    currentPageTitle,
+  );
+  const { selectedTitles, setSelectedTitles } = useAssignedReferenceFilter(
+    options,
+    currentPageTitle,
+  );
+  const visibleRows = rows.filter((block) =>
+    matchesAssignedReferenceFilter(
+      block.text,
+      currentPageTitle,
+      selectedTitles,
+    ),
+  );
+
   if (rows.length === 0) return null;
 
-  const openCount = rows.filter(
+  const openCount = visibleRows.filter(
     (block) => parseTask(block.text)?.state === 'TODO',
   ).length;
 
   return (
     <section className="mt-16 border-t pt-6">
-      <h2 className="mb-1 text-sm font-semibold tracking-wide text-muted-foreground uppercase">
-        Tasks
-        {openCount > 0 && <span className="ml-2 font-normal">{openCount}</span>}
+      <h2 className="mb-1 flex items-center text-sm font-semibold tracking-wide text-muted-foreground uppercase">
+        <span>
+          Tasks
+          {openCount > 0 && (
+            <span className="ml-2 font-normal">{openCount}</span>
+          )}
+        </span>
+        <AssignedReferenceFilter
+          options={options}
+          selectedTitles={selectedTitles}
+          onSelectedTitlesChange={setSelectedTitles}
+        />
       </h2>
-      {rows.map((block) => (
-        <div key={block.id} className="py-[3px] leading-6">
-          <BlockContent block={block} />
-        </div>
-      ))}
+      {visibleRows.length === 0 ? (
+        <p className="text-sm font-normal tracking-normal text-muted-foreground normal-case">
+          No tasks match this filter.
+        </p>
+      ) : (
+        visibleRows.map((block) => (
+          <div key={block.id} className="py-[3px] leading-6">
+            <BlockContent block={block} />
+          </div>
+        ))
+      )}
     </section>
   );
 }
