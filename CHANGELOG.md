@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.18.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.17.0...taproot-v0.18.0) (2026-08-18)
+
+
+### Features
+
+* add page deletion ([2781016](https://github.com/devbydaniel/taproot/commit/27810168be9474ba6879cfb5293a9dbb19313668))
+* add page rename functionality ([011adb4](https://github.com/devbydaniel/taproot/commit/011adb45b82e2e5e120fc70dd6d0a703f67eb976))
+
 ## [0.17.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.16.0...taproot-v0.17.0) (2026-08-11)
 
 
