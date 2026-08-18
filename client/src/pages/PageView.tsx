@@ -16,6 +16,7 @@ import {
   Pencil,
   Pin,
   PinOff,
+  Trash2,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
@@ -131,6 +132,7 @@ export function PageView({ id }: { id: string }) {
         <>
           <PagePinMenu pageId={id} />
           <PageRenameButton page={page} />
+          <PageDeleteButton page={page} />
         </>
       }
     >
@@ -237,6 +239,49 @@ function PageRenameButton({ page }: { page: Page }) {
             </Button>
           </DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PageDeleteButton({ page }: { page: Page }) {
+  const [, navigate] = useLocation();
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-7 text-muted-foreground hover:text-destructive"
+        title="Delete page"
+        onClick={() => setOpen(true)}
+      >
+        <Trash2 />
+      </Button>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Delete “{page.title}”?</DialogTitle>
+          <DialogDescription>
+            This deletes the page and all of its blocks. Wikilinks and tags to
+            this page will be converted to plain text. This cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => {
+              if (!actions.deletePage(page.id)) return;
+              setOpen(false);
+              navigate('/pages');
+            }}
+          >
+            Delete page
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

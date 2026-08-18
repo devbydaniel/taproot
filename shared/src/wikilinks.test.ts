@@ -4,6 +4,7 @@ import {
   extractWikilinks,
   findPageReferences,
   findWikilinks,
+  removePageReferences,
   renamePageReferences,
   segmentText,
 } from './wikilinks.js';
@@ -103,6 +104,12 @@ describe('renamePageReferences', () => {
     expect(renamePageReferences('[[ Old ]] #[[ Old ]]', 'Old', 'New')).toBe(
       '[[New]] #[[New]]',
     );
+  });
+
+  it('converts deleted-page references to visible plain text', () => {
+    expect(
+      removePageReferences('[[Old]] #Old #[[Old]] [[Other]] plain Old', 'Old'),
+    ).toBe('Old Old Old [[Other]] plain Old');
   });
 });
 

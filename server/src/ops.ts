@@ -1,10 +1,13 @@
 import {
   extractPageReferences,
+  isPageOp,
   isPinFolderOp,
   parseTask,
+  removePageReferences,
   renamePageReferences,
   type Op,
   type Page,
+  type PageOp,
   type PinFolderOp,
   type TaskState,
 } from '@taproot/shared';
@@ -362,15 +365,38 @@ function applyRenamePage(
   updateDerivedIndexes(store, renamedBlocks);
 }
 
-const PAGE_OP_TYPES = [
-  'create_page',
-  'rename_page',
-  'set_page_pinned',
-] as const;
-type PageOp = Extract<Op, { type: (typeof PAGE_OP_TYPES)[number] }>;
+function applyDeletePage(
+  store: Store,
+  op: Extract<Op, { type: 'delete_page' }>,
+  now: number,
+) {
+  const currentPage = store.db
+    .select({ title: pages.title })
+    .from(pages)
+    .where(eq(pages.id, op.id))
+    .get();
+  if (!currentPage || currentPage.title !== op.title) return;
 
-function isPageOp(op: Op): op is PageOp {
-  return (PAGE_OP_TYPES as readonly string[]).includes(op.type);
+  const referencingBlocks = store.db
+    .select({ id: blocks.id, pageId: blocks.pageId, text: blocks.text })
+    .from(refs)
+    .innerJoin(blocks, eq(refs.blockId, blocks.id))
+    .where(eq(refs.pageId, op.id))
+    .all();
+  const changedBlocks = referencingBlocks.flatMap((block) => {
+    if (block.pageId === op.id) return [];
+    const text = removePageReferences(block.text, currentPage.title);
+    return text === block.text ? [] : [{ id: block.id, text }];
+  });
+
+  const updateBlock = store.sqlite.prepare(
+    'UPDATE blocks SET text = ?, updated_at = ? WHERE id = ?',
+  );
+  for (const block of changedBlocks) {
+    updateBlock.run(block.text, now, block.id);
+  }
+  updateDerivedIndexes(store, changedBlocks);
+  store.db.delete(pages).where(eq(pages.id, op.id)).run();
 }
 
 function applyPageOp(store: Store, op: PageOp, now: number) {
@@ -384,6 +410,9 @@ function applyPageOp(store: Store, op: PageOp, now: number) {
       break;
     case 'rename_page':
       applyRenamePage(store, op, now);
+      break;
+    case 'delete_page':
+      applyDeletePage(store, op, now);
       break;
     case 'set_page_pinned':
       store.db

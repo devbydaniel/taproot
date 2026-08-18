@@ -1,5 +1,6 @@
 import {
   isPinFolderOp,
+  removePageReferences,
   renamePageReferences,
   type Block,
   type Op,
@@ -119,12 +120,30 @@ function renameReferencesInBlocks(
   return changed ? next : blocks;
 }
 
+function deletePageFromBlocks(
+  blocks: Record<string, Block>,
+  op: Extract<Op, { type: 'delete_page' }>,
+): Record<string, Block> {
+  const next: Record<string, Block> = {};
+  for (const block of Object.values(blocks)) {
+    if (block.pageId === op.id) continue;
+    const text =
+      block.kind === 'text'
+        ? removePageReferences(block.text, op.title)
+        : block.text;
+    next[block.id] =
+      text === block.text ? block : { ...block, text, updatedAt: Date.now() };
+  }
+  return next;
+}
+
 function applyOpToBlocks(
   blocks: Record<string, Block>,
   op: Op,
 ): Record<string, Block> {
   if (isPinFolderOp(op)) return blocks;
   if (op.type === 'rename_page') return renameReferencesInBlocks(blocks, op);
+  if (op.type === 'delete_page') return deletePageFromBlocks(blocks, op);
   switch (op.type) {
     case 'create_page':
     case 'set_page_pinned':
@@ -191,6 +210,9 @@ function applyOpToBlocks(
  * most ops don't touch pages, so unknown ops pass through unchanged.
  */
 function applyOpToPages(pages: Page[], op: Op): Page[] {
+  if (op.type === 'delete_page') {
+    return pages.filter((page) => page.id !== op.id);
+  }
   if (op.type === 'rename_page') {
     return pages.map((page) =>
       page.id === op.id ? { ...page, title: op.title } : page,
@@ -272,6 +294,21 @@ function applyOpToPinFolders(
   }
 }
 
+function shouldApplyPageLifecycleOp(
+  pages: Page[],
+  op: Extract<Op, { type: 'rename_page' | 'delete_page' }>,
+): boolean {
+  const page = pages.find((item) => item.id === op.id);
+  if (!page) return false;
+  if (op.type === 'delete_page') return page.title === op.title;
+  const titleConflict = pages.some(
+    (item) => item.id !== op.id && item.title === op.title,
+  );
+  return (
+    !titleConflict && (page.title === op.oldTitle || page.title === op.title)
+  );
+}
+
 export const useStore = create<OutlineState>((set) => ({
   pages: [],
   pinFolders: [],
@@ -305,21 +342,13 @@ export const useStore = create<OutlineState>((set) => ({
       let pages = state.pages;
       let pinFolders = state.pinFolders;
       for (const op of ops) {
-        if (op.type === 'rename_page') {
-          const page = pages.find((item) => item.id === op.id);
-          const titleConflict = pages.some(
-            (item) => item.id !== op.id && item.title === op.title,
-          );
-          // Match the server's stale/conflicting-op no-op behavior. If this
-          // page is not in the local list yet, the following epoch refetch is
-          // authoritative and safer than rewriting unrelated loaded blocks.
-          if (
-            !page ||
-            titleConflict ||
-            (page.title !== op.oldTitle && page.title !== op.title)
-          ) {
-            continue;
-          }
+        // Match the server's stale/conflicting-op no-op behavior. If the page
+        // is not local yet, the following epoch refetch is authoritative.
+        if (
+          (op.type === 'rename_page' || op.type === 'delete_page') &&
+          !shouldApplyPageLifecycleOp(pages, op)
+        ) {
+          continue;
         }
         blocks = applyOpToBlocks(blocks, op);
         pages = applyOpToPages(pages, op);

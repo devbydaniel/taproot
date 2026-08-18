@@ -70,6 +70,15 @@ describe('remapOps', () => {
     ]);
   });
 
+  it('re-points deletion of an offline-created page at the server id', () => {
+    const deletion: Op[] = [
+      { type: 'delete_page', id: 'loc1', title: 'Temporary' },
+    ];
+    expect(remapOps(deletion, new Map([['loc1', 'srv1']]))).toEqual([
+      { type: 'delete_page', id: 'srv1', title: 'Temporary' },
+    ]);
+  });
+
   it('returns the same array reference when nothing matches', () => {
     expect(remapOps(ops, new Map([['other', 'x']]))).toBe(ops);
   });

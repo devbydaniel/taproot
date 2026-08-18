@@ -184,6 +184,48 @@ describe('applyOps', () => {
     expect(getPagePayload(store, page.id)?.page.title).toBe('Second');
   });
 
+  it('deletes a page and converts incoming references to plain text', () => {
+    const home = setupPage('Home');
+    const doomed = setupPage('Doomed');
+    applyOps(store, [
+      {
+        type: 'create_block',
+        id: 'source',
+        pageId: home.id,
+        parentId: null,
+        orderKey: 'a0',
+        text: 'TODO [[Doomed]] #Doomed #[[Doomed]] [[Other]]',
+      },
+      {
+        type: 'create_block',
+        id: 'doomed-block',
+        pageId: doomed.id,
+        parentId: null,
+        orderKey: 'a0',
+        text: 'page content',
+      },
+    ]);
+
+    applyOps(store, [{ type: 'delete_page', id: doomed.id, title: 'Doomed' }]);
+
+    expect(getPagePayload(store, doomed.id)).toBeNull();
+    expect(getPagePayload(store, home.id)?.blocks[0]?.text).toBe(
+      'TODO Doomed Doomed Doomed [[Other]]',
+    );
+    expect(getTaskList(store).tasks[0]?.block.id).toBe('source');
+    expect(
+      getPagePayload(store, ensurePage(store, 'Other').id)?.linkedRefs[0]
+        ?.rootIds,
+    ).toEqual(['source']);
+    expect(listPages(store).map((page) => page.title)).not.toContain('Doomed');
+  });
+
+  it('ignores a page deletion carrying a stale title', () => {
+    const page = setupPage('Current');
+    applyOps(store, [{ type: 'delete_page', id: page.id, title: 'Previous' }]);
+    expect(getPagePayload(store, page.id)?.page.title).toBe('Current');
+  });
+
   it('includes the full subtree of a referencing block in linked refs', () => {
     const page = setupPage('Home');
     applyOps(store, [

@@ -39,6 +39,25 @@ export function findPageReferences(text: string): PageReference[] {
   return references;
 }
 
+function rewritePageReferences(
+  text: string,
+  title: string,
+  replacement: (reference: PageReference) => string,
+): string {
+  const references = findPageReferences(text).filter(
+    (reference) => reference.title === title,
+  );
+  if (references.length === 0) return text;
+
+  let result = '';
+  let cursor = 0;
+  for (const reference of references) {
+    result += text.slice(cursor, reference.from) + replacement(reference);
+    cursor = reference.to;
+  }
+  return result + text.slice(cursor);
+}
+
 /**
  * Rename exact page references while preserving their kind. A single-word tag
  * is promoted to #[[...]] when the new title cannot be represented by #word.
@@ -48,27 +67,18 @@ export function renamePageReferences(
   oldTitle: string,
   newTitle: string,
 ): string {
-  const references = findPageReferences(text).filter(
-    (reference) => reference.title === oldTitle,
-  );
-  if (references.length === 0) return text;
+  return rewritePageReferences(text, oldTitle, (reference) => {
+    if (reference.type === 'link') return `[[${newTitle}]]`;
+    if (reference.raw.startsWith('#[[')) return `#[[${newTitle}]]`;
+    return SINGLE_TAG_TITLE.test(newTitle)
+      ? `#${newTitle}`
+      : `#[[${newTitle}]]`;
+  });
+}
 
-  let result = '';
-  let cursor = 0;
-  for (const reference of references) {
-    result += text.slice(cursor, reference.from);
-    if (reference.type === 'link') {
-      result += `[[${newTitle}]]`;
-    } else if (reference.raw.startsWith('#[[')) {
-      result += `#[[${newTitle}]]`;
-    } else {
-      result += SINGLE_TAG_TITLE.test(newTitle)
-        ? `#${newTitle}`
-        : `#[[${newTitle}]]`;
-    }
-    cursor = reference.to;
-  }
-  return result + text.slice(cursor);
+/** Convert exact wikilinks and tags to their visible plain-text title. */
+export function removePageReferences(text: string, title: string): string {
+  return rewritePageReferences(text, title, (reference) => reference.title);
 }
 
 /** Unique, trimmed page titles referenced via [[...]] in the given text. */

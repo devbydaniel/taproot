@@ -27,6 +27,12 @@ export const opSchema = z.discriminatedUnion('type', [
     title: z.string().trim().min(1),
   }),
   z.object({
+    type: z.literal('delete_page'),
+    id,
+    // guards stale/offline replays from deleting a page recreated under this id
+    title: z.string().min(1),
+  }),
+  z.object({
     type: z.literal('create_block'),
     id,
     pageId: id,
@@ -107,6 +113,19 @@ export const opSchema = z.discriminatedUnion('type', [
 ]);
 
 export type Op = z.infer<typeof opSchema>;
+
+export const PAGE_OP_TYPES = [
+  'create_page',
+  'rename_page',
+  'delete_page',
+  'set_page_pinned',
+] as const;
+
+export type PageOp = Extract<Op, { type: (typeof PAGE_OP_TYPES)[number] }>;
+
+export function isPageOp(op: Op): op is PageOp {
+  return (PAGE_OP_TYPES as readonly string[]).includes(op.type);
+}
 
 /**
  * The ops that touch only the pinned sidebar's folders. Interpreters branch on

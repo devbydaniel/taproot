@@ -155,6 +155,15 @@ export function renamePage(pageId: string, title: string): boolean {
   return true;
 }
 
+/** Delete a page, its blocks, and convert incoming references to plain text. */
+export function deletePage(pageId: string): boolean {
+  const page = useStore.getState().pages.find((item) => item.id === pageId);
+  if (!page) return false;
+  flushText();
+  dispatch([{ type: 'delete_page', id: pageId, title: page.title }]);
+  return true;
+}
+
 /** Pin appends at the end of the top level; unpin clears the key and the folder. */
 export function togglePagePinned(pageId: string) {
   const { pages, pinFolders } = useStore.getState();
