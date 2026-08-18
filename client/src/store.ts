@@ -1,5 +1,6 @@
 import {
   isPinFolderOp,
+  renamePageReferences,
   type Block,
   type Op,
   type Page,
@@ -100,11 +101,30 @@ function patchBlock(
   return { ...blocks, [id]: { ...block, ...patch } };
 }
 
+function renameReferencesInBlocks(
+  blocks: Record<string, Block>,
+  op: Extract<Op, { type: 'rename_page' }>,
+): Record<string, Block> {
+  let changed = false;
+  const next: Record<string, Block> = {};
+  for (const block of Object.values(blocks)) {
+    const text =
+      block.kind === 'text'
+        ? renamePageReferences(block.text, op.oldTitle, op.title)
+        : block.text;
+    if (text !== block.text) changed = true;
+    next[block.id] =
+      text === block.text ? block : { ...block, text, updatedAt: Date.now() };
+  }
+  return changed ? next : blocks;
+}
+
 function applyOpToBlocks(
   blocks: Record<string, Block>,
   op: Op,
 ): Record<string, Block> {
   if (isPinFolderOp(op)) return blocks;
+  if (op.type === 'rename_page') return renameReferencesInBlocks(blocks, op);
   switch (op.type) {
     case 'create_page':
     case 'set_page_pinned':
@@ -171,6 +191,11 @@ function applyOpToBlocks(
  * most ops don't touch pages, so unknown ops pass through unchanged.
  */
 function applyOpToPages(pages: Page[], op: Op): Page[] {
+  if (op.type === 'rename_page') {
+    return pages.map((page) =>
+      page.id === op.id ? { ...page, title: op.title } : page,
+    );
+  }
   if (op.type === 'set_page_pinned') {
     return pages.map((page) =>
       page.id === op.id
@@ -280,6 +305,22 @@ export const useStore = create<OutlineState>((set) => ({
       let pages = state.pages;
       let pinFolders = state.pinFolders;
       for (const op of ops) {
+        if (op.type === 'rename_page') {
+          const page = pages.find((item) => item.id === op.id);
+          const titleConflict = pages.some(
+            (item) => item.id !== op.id && item.title === op.title,
+          );
+          // Match the server's stale/conflicting-op no-op behavior. If this
+          // page is not in the local list yet, the following epoch refetch is
+          // authoritative and safer than rewriting unrelated loaded blocks.
+          if (
+            !page ||
+            titleConflict ||
+            (page.title !== op.oldTitle && page.title !== op.title)
+          ) {
+            continue;
+          }
+        }
         blocks = applyOpToBlocks(blocks, op);
         pages = applyOpToPages(pages, op);
         if (isPinFolderOp(op)) {

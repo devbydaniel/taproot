@@ -118,6 +118,72 @@ describe('applyOps', () => {
     expect(getPagePayload(store, b.id)?.linkedRefs).toHaveLength(1);
   });
 
+  it('renames a page and all exact wikilink and tag references', () => {
+    const home = setupPage('Home');
+    const target = setupPage('Old');
+    applyOps(store, [
+      {
+        type: 'create_block',
+        id: 'b1',
+        pageId: home.id,
+        parentId: null,
+        orderKey: 'a0',
+        text: 'TODO [[Old]] #Old #[[Old]] [[Old News]] [[Other]]',
+      },
+    ]);
+
+    applyOps(store, [
+      {
+        type: 'rename_page',
+        id: target.id,
+        oldTitle: 'Old',
+        title: 'New Name',
+      },
+    ]);
+
+    const payload = getPagePayload(store, target.id);
+    expect(payload?.page.title).toBe('New Name');
+    expect(getPagePayload(store, home.id)?.blocks[0]?.text).toBe(
+      'TODO [[New Name]] #[[New Name]] #[[New Name]] [[Old News]] [[Other]]',
+    );
+    expect(payload?.linkedRefs[0]?.rootIds).toEqual(['b1']);
+    expect(getTaskList(store).tasks[0]?.block.id).toBe('b1');
+    expect(
+      getPagePayload(store, ensurePage(store, 'Other').id)?.linkedRefs[0]
+        ?.rootIds,
+    ).toEqual(['b1']);
+  });
+
+  it('makes page renames idempotent and ignores stale or conflicting titles', () => {
+    const page = setupPage('First');
+    setupPage('Taken');
+    const rename: Op = {
+      type: 'rename_page',
+      id: page.id,
+      oldTitle: 'First',
+      title: 'Second',
+    };
+
+    applyOps(store, [rename]);
+    applyOps(store, [rename]);
+    applyOps(store, [
+      {
+        type: 'rename_page',
+        id: page.id,
+        oldTitle: 'First',
+        title: 'Stale',
+      },
+      {
+        type: 'rename_page',
+        id: page.id,
+        oldTitle: 'Second',
+        title: 'Taken',
+      },
+    ]);
+
+    expect(getPagePayload(store, page.id)?.page.title).toBe('Second');
+  });
+
   it('includes the full subtree of a referencing block in linked refs', () => {
     const page = setupPage('Home');
     applyOps(store, [

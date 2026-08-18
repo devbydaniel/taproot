@@ -4,6 +4,7 @@ import {
   extractWikilinks,
   findPageReferences,
   findWikilinks,
+  renamePageReferences,
   segmentText,
 } from './wikilinks.js';
 
@@ -78,6 +79,30 @@ describe('page references', () => {
         titleTo: 29,
       },
     ]);
+  });
+});
+
+describe('renamePageReferences', () => {
+  it('renames exact wikilinks and both tag forms', () => {
+    expect(
+      renamePageReferences(
+        '[[Old]] #Old #[[Old]] [[Old News]] plain Old',
+        'Old',
+        'New',
+      ),
+    ).toBe('[[New]] #New #[[New]] [[Old News]] plain Old');
+  });
+
+  it('promotes a single-word tag when the new title contains spaces', () => {
+    expect(renamePageReferences('#old', 'old', 'New Name')).toBe(
+      '#[[New Name]]',
+    );
+  });
+
+  it('normalizes whitespace inside bracketed references', () => {
+    expect(renamePageReferences('[[ Old ]] #[[ Old ]]', 'Old', 'New')).toBe(
+      '[[New]] #[[New]]',
+    );
   });
 });
 

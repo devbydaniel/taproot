@@ -5,6 +5,7 @@ import {
   parseDailyTitle,
   shiftDailyTitle,
   todayTitle,
+  type Page,
   type PagePayload,
 } from '@taproot/shared';
 import {
@@ -12,6 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Folder,
+  Pencil,
   Pin,
   PinOff,
 } from 'lucide-react';
@@ -26,6 +28,14 @@ import { PageTasks } from '@/components/PageTasks';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -35,6 +45,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
 import {
   Popover,
   PopoverContent,
@@ -49,6 +60,7 @@ export function PageView({ id }: { id: string }) {
   const [payload, setPayload] = useState<PagePayload | null>(null);
   const [notFound, setNotFound] = useState(false);
   const remoteEpoch = useStore((s) => s.remoteEpoch);
+  const storePage = useStore((s) => s.pages.find((page) => page.id === id));
   const hasBlocks = useStore((s) =>
     Object.values(s.blocks).some((b) => b.pageId === id),
   );
@@ -91,6 +103,7 @@ export function PageView({ id }: { id: string }) {
   }
   if (!payload) return null;
 
+  const page = storePage ?? payload.page;
   const ctx: OutlineCtx = { pageId: id, rootParentId: null };
 
   const clickBelow = () => {
@@ -104,7 +117,7 @@ export function PageView({ id }: { id: string }) {
     }
   };
 
-  const isDaily = isDailyTitle(payload.page.title);
+  const isDaily = isDailyTitle(page.title);
 
   return (
     <PageShell
@@ -112,19 +125,24 @@ export function PageView({ id }: { id: string }) {
         isDaily
           ? { label: 'Journal', href: '/journal' }
           : { label: 'Pages', href: '/pages' },
-        { label: payload.page.title },
+        { label: page.title },
       ]}
-      actions={<PagePinMenu pageId={id} />}
+      actions={
+        <>
+          <PagePinMenu pageId={id} />
+          <PageRenameButton page={page} />
+        </>
+      }
     >
       <h1
         className={
           'text-lg font-semibold tracking-tight ' + (isDaily ? 'mb-1' : 'mb-4')
         }
       >
-        {isDaily ? dailyLabel(payload.page.title) : payload.page.title}
+        {isDaily ? dailyLabel(page.title) : page.title}
       </h1>
-      {isDaily && <DailyNav title={payload.page.title} />}
-      {isDaily && <DailyAgenda pageId={id} pageTitle={payload.page.title} />}
+      {isDaily && <DailyNav title={page.title} />}
+      {isDaily && <DailyAgenda pageId={id} pageTitle={page.title} />}
       {hasBlocks ? (
         <OutlineTree parentId={null} ctx={ctx} />
       ) : (
@@ -137,17 +155,90 @@ export function PageView({ id }: { id: string }) {
       )}
       <div className="h-24 cursor-text" onClick={clickBelow} />
       {!isDaily && (
-        <PageTasks
-          groups={payload.linkedRefs}
-          currentPageTitle={payload.page.title}
-        />
+        <PageTasks groups={payload.linkedRefs} currentPageTitle={page.title} />
       )}
       <LinkedRefs
         groups={payload.linkedRefs}
         currentPageId={payload.page.id}
-        currentPageTitle={payload.page.title}
+        currentPageTitle={page.title}
       />
     </PageShell>
+  );
+}
+
+function PageRenameButton({ page }: { page: Page }) {
+  const pages = useStore((s) => s.pages);
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(page.title);
+  const title = draft.trim();
+  const duplicate = pages.some(
+    (item) => item.id !== page.id && item.title === title,
+  );
+  const canRename = title !== '' && title !== page.title && !duplicate;
+
+  const setDialogOpen = (next: boolean) => {
+    setOpen(next);
+    if (next) setDraft(page.title);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setDialogOpen}>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-7 text-muted-foreground hover:text-foreground"
+        title="Rename page"
+        onClick={() => setDialogOpen(true)}
+      >
+        <Pencil />
+      </Button>
+      <DialogContent>
+        <form
+          className="grid gap-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (canRename && actions.renamePage(page.id, title)) setOpen(false);
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Rename page</DialogTitle>
+            <DialogDescription>
+              Wikilinks and tags that reference this page will be renamed too.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2">
+            <label htmlFor="rename-page-title" className="text-sm font-medium">
+              Page title
+            </label>
+            <Input
+              id="rename-page-title"
+              autoFocus
+              value={draft}
+              aria-invalid={duplicate || undefined}
+              onChange={(event) => setDraft(event.target.value)}
+              onFocus={(event) => event.currentTarget.select()}
+            />
+            {duplicate && (
+              <p className="text-sm text-destructive" role="alert">
+                A page with this title already exists.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={!canRename}>
+              Rename
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 

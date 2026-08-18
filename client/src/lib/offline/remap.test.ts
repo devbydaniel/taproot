@@ -51,6 +51,25 @@ describe('remapOps', () => {
     ]);
   });
 
+  it('re-points a rename of an offline-created page at the server id', () => {
+    const rename: Op[] = [
+      {
+        type: 'rename_page',
+        id: 'loc1',
+        oldTitle: 'Old',
+        title: 'New',
+      },
+    ];
+    expect(remapOps(rename, new Map([['loc1', 'srv1']]))).toEqual([
+      {
+        type: 'rename_page',
+        id: 'srv1',
+        oldTitle: 'Old',
+        title: 'New',
+      },
+    ]);
+  });
+
   it('returns the same array reference when nothing matches', () => {
     expect(remapOps(ops, new Map([['other', 'x']]))).toBe(ops);
   });

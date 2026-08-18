@@ -130,6 +130,31 @@ export function assignTaskToPage(blockId: string, title: string) {
   dispatch([{ type: 'update_text', id: blockId, text }]);
 }
 
+/** Rename the page and every exact wikilink/tag that refers to it. */
+export function renamePage(pageId: string, title: string): boolean {
+  const trimmed = title.trim();
+  const { pages } = useStore.getState();
+  const page = pages.find((item) => item.id === pageId);
+  if (
+    !page ||
+    !trimmed ||
+    trimmed === page.title ||
+    pages.some((item) => item.id !== pageId && item.title === trimmed)
+  ) {
+    return false;
+  }
+  flushText();
+  dispatch([
+    {
+      type: 'rename_page',
+      id: pageId,
+      oldTitle: page.title,
+      title: trimmed,
+    },
+  ]);
+  return true;
+}
+
 /** Pin appends at the end of the top level; unpin clears the key and the folder. */
 export function togglePagePinned(pageId: string) {
   const { pages, pinFolders } = useStore.getState();

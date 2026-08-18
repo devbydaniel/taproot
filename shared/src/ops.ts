@@ -20,6 +20,13 @@ export const opSchema = z.discriminatedUnion('type', [
     title: z.string().min(1),
   }),
   z.object({
+    type: z.literal('rename_page'),
+    id,
+    // guards stale/offline replays from undoing a newer rename
+    oldTitle: z.string().min(1),
+    title: z.string().trim().min(1),
+  }),
+  z.object({
     type: z.literal('create_block'),
     id,
     pageId: id,

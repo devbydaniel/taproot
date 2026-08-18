@@ -45,6 +45,14 @@ export function remapOps(ops: Op[], mapping: Map<string, string>): Op[] {
         continue;
       }
     }
+    if (op.type === 'rename_page') {
+      const serverId = mapping.get(op.id);
+      if (serverId !== undefined) {
+        touched = true;
+        out.push({ ...op, id: serverId });
+        continue;
+      }
+    }
     out.push(op);
   }
   return touched ? out : ops;

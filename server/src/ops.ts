@@ -2,12 +2,13 @@ import {
   extractPageReferences,
   isPinFolderOp,
   parseTask,
+  renamePageReferences,
   type Op,
   type Page,
   type PinFolderOp,
   type TaskState,
 } from '@taproot/shared';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import type { Store } from './db.js';
 import { blocks, pages, pinFolders, refs, tasks } from './schema.js';
@@ -72,6 +73,86 @@ function updateTaskIndex(store: Store, blockId: string, text: string) {
 }
 
 type TextBlock = { id: string; text: string };
+
+/** Recompute refs and tasks for a set of changed blocks without N+1 reads. */
+function updateDerivedIndexes(store: Store, textBlocks: TextBlock[]) {
+  if (textBlocks.length === 0) return;
+  const blockIds = textBlocks.map((block) => block.id);
+
+  const pageIds = new Map(
+    store.db
+      .select({ id: pages.id, title: pages.title })
+      .from(pages)
+      .all()
+      .map((page) => [page.title, page.id]),
+  );
+  const references = textBlocks.flatMap((block) =>
+    extractPageReferences(block.text).map((title) => ({
+      blockId: block.id,
+      title,
+    })),
+  );
+  const missingTitles = [
+    ...new Set(
+      references
+        .map((reference) => reference.title)
+        .filter((title) => !pageIds.has(title)),
+    ),
+  ];
+  if (missingTitles.length > 0) {
+    const missingPages = missingTitles.map((title) => ({
+      id: nanoid(),
+      title,
+      createdAt: Date.now(),
+    }));
+    store.db.insert(pages).values(missingPages).run();
+    for (const page of missingPages) pageIds.set(page.title, page.id);
+  }
+
+  store.db.delete(refs).where(inArray(refs.blockId, blockIds)).run();
+  if (references.length > 0) {
+    store.db
+      .insert(refs)
+      .values(
+        references.map(({ blockId, title }) => ({
+          blockId,
+          pageId: pageIds.get(title)!,
+        })),
+      )
+      .onConflictDoNothing()
+      .run();
+  }
+
+  const existingTasks = new Map(
+    store.db
+      .select()
+      .from(tasks)
+      .where(inArray(tasks.blockId, blockIds))
+      .all()
+      .map((task) => [task.blockId, task]),
+  );
+  const indexedTasks = textBlocks.flatMap((block) => {
+    const parsed = parseTask(block.text);
+    if (!parsed) return [];
+    const existing = existingTasks.get(block.id);
+    return [
+      {
+        blockId: block.id,
+        state: parsed.state,
+        completedAt:
+          parsed.state === 'DONE'
+            ? existing?.state === 'DONE'
+              ? existing.completedAt
+              : Date.now()
+            : null,
+      },
+    ];
+  });
+  store.db.delete(tasks).where(inArray(tasks.blockId, blockIds)).run();
+  if (indexedTasks.length > 0) {
+    store.db.insert(tasks).values(indexedTasks).run();
+  }
+}
 
 /** Rebuild refs and create missing targets without an N+1 page lookup. */
 function reindexRefs(store: Store, textBlocks: TextBlock[]) {
@@ -236,21 +317,102 @@ function applyPinFolderOp(store: Store, op: PinFolderOp) {
   }
 }
 
-function applyOp(store: Store, op: Op) {
-  const now = Date.now();
-  if (isPinFolderOp(op)) {
-    applyPinFolderOp(store, op);
-    return;
+function applyRenamePage(
+  store: Store,
+  op: Extract<Op, { type: 'rename_page' }>,
+  now: number,
+) {
+  const currentPage = store.db
+    .select()
+    .from(pages)
+    .where(eq(pages.id, op.id))
+    .get();
+  // oldTitle makes the op idempotent and prevents a stale offline replay from
+  // undoing a rename that reached the server first.
+  if (!currentPage || currentPage.title !== op.oldTitle) return;
+  const titleOwner = store.db
+    .select({ id: pages.id })
+    .from(pages)
+    .where(eq(pages.title, op.title))
+    .get();
+  if (titleOwner && titleOwner.id !== op.id) return;
+
+  const referencingBlocks = store.db
+    .select({ id: blocks.id, text: blocks.text })
+    .from(refs)
+    .innerJoin(blocks, eq(refs.blockId, blocks.id))
+    .where(eq(refs.pageId, op.id))
+    .all();
+  const renamedBlocks = referencingBlocks.flatMap((block) => {
+    const text = renamePageReferences(block.text, currentPage.title, op.title);
+    return text === block.text ? [] : [{ id: block.id, text }];
+  });
+
+  store.db
+    .update(pages)
+    .set({ title: op.title })
+    .where(eq(pages.id, op.id))
+    .run();
+  const updateBlock = store.sqlite.prepare(
+    'UPDATE blocks SET text = ?, updated_at = ? WHERE id = ?',
+  );
+  for (const block of renamedBlocks) {
+    updateBlock.run(block.text, now, block.id);
   }
+  updateDerivedIndexes(store, renamedBlocks);
+}
+
+const PAGE_OP_TYPES = [
+  'create_page',
+  'rename_page',
+  'set_page_pinned',
+] as const;
+type PageOp = Extract<Op, { type: (typeof PAGE_OP_TYPES)[number] }>;
+
+function isPageOp(op: Op): op is PageOp {
+  return (PAGE_OP_TYPES as readonly string[]).includes(op.type);
+}
+
+function applyPageOp(store: Store, op: PageOp, now: number) {
   switch (op.type) {
-    case 'create_page': {
+    case 'create_page':
       store.db
         .insert(pages)
         .values({ id: op.id, title: op.title, createdAt: now })
         .onConflictDoNothing()
         .run();
       break;
-    }
+    case 'rename_page':
+      applyRenamePage(store, op, now);
+      break;
+    case 'set_page_pinned':
+      store.db
+        .update(pages)
+        .set({
+          pinnedOrderKey: op.orderKey,
+          // an unpinned page never keeps a stale folder; absent folderId
+          // (ops queued before folders existed) means top level
+          pinnedFolderId: op.orderKey === null ? null : (op.folderId ?? null),
+        })
+        .where(eq(pages.id, op.id))
+        .run();
+      break;
+    default:
+      op satisfies never;
+  }
+}
+
+function applyOp(store: Store, op: Op) {
+  const now = Date.now();
+  if (isPinFolderOp(op)) {
+    applyPinFolderOp(store, op);
+    return;
+  }
+  if (isPageOp(op)) {
+    applyPageOp(store, op, now);
+    return;
+  }
+  switch (op.type) {
     case 'create_block': {
       store.db
         .insert(blocks)
@@ -323,19 +485,6 @@ function applyOp(store: Store, op: Op) {
         .update(blocks)
         .set({ data: op.data, updatedAt: now })
         .where(eq(blocks.id, op.id))
-        .run();
-      break;
-    }
-    case 'set_page_pinned': {
-      store.db
-        .update(pages)
-        .set({
-          pinnedOrderKey: op.orderKey,
-          // an unpinned page never keeps a stale folder; absent folderId
-          // (ops queued before folders existed) means top level
-          pinnedFolderId: op.orderKey === null ? null : (op.folderId ?? null),
-        })
-        .where(eq(pages.id, op.id))
         .run();
       break;
     }

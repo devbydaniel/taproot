@@ -1,5 +1,6 @@
 const PAGE_REFERENCE =
   /(?<![\p{L}\p{N}_/#=?&])#(?:\[\[([^[\]\n]+?)\]\]|([\p{L}\p{N}_](?:[\p{L}\p{N}_-]*[\p{L}\p{N}_])?))|\[\[([^[\]\n]+?)\]\]/gu;
+const SINGLE_TAG_TITLE = /^[\p{L}\p{N}_](?:[\p{L}\p{N}_-]*[\p{L}\p{N}_])?$/u;
 
 export interface PageReference {
   type: 'link' | 'tag';
@@ -36,6 +37,38 @@ export function findPageReferences(text: string): PageReference[] {
     });
   }
   return references;
+}
+
+/**
+ * Rename exact page references while preserving their kind. A single-word tag
+ * is promoted to #[[...]] when the new title cannot be represented by #word.
+ */
+export function renamePageReferences(
+  text: string,
+  oldTitle: string,
+  newTitle: string,
+): string {
+  const references = findPageReferences(text).filter(
+    (reference) => reference.title === oldTitle,
+  );
+  if (references.length === 0) return text;
+
+  let result = '';
+  let cursor = 0;
+  for (const reference of references) {
+    result += text.slice(cursor, reference.from);
+    if (reference.type === 'link') {
+      result += `[[${newTitle}]]`;
+    } else if (reference.raw.startsWith('#[[')) {
+      result += `#[[${newTitle}]]`;
+    } else {
+      result += SINGLE_TAG_TITLE.test(newTitle)
+        ? `#${newTitle}`
+        : `#[[${newTitle}]]`;
+    }
+    cursor = reference.to;
+  }
+  return result + text.slice(cursor);
 }
 
 /** Unique, trimmed page titles referenced via [[...]] in the given text. */
