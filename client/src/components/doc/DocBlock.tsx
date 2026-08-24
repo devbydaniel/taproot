@@ -15,8 +15,10 @@ const DocEditor = lazy(() => import('./DocEditor'));
  * navigation flows through it like any text block.
  */
 export function DocBlock({ block, ctx }: { block: Block; ctx: OutlineCtx }) {
-  const isFocused = useStore((s) => s.focused?.blockId === block.id);
-  const isOpen = useStore((s) => s.openDocId === block.id);
+  const isFocused = useStore(
+    (s) => s.focused?.blockId === block.id && s.focused.origin === ctx.origin,
+  );
+  const isOpen = useStore((s) => s.openDocId === block.id && isFocused);
   const setFocus = useStore((s) => s.setFocus);
   const setOpenDoc = useStore((s) => s.setOpenDoc);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -25,6 +27,11 @@ export function DocBlock({ block, ctx }: { block: Block; ctx: OutlineCtx }) {
   useEffect(() => {
     if (isFocused && !isOpen) wrapperRef.current?.focus();
   }, [isFocused, isOpen]);
+
+  const open = () => {
+    setFocus({ blockId: block.id, cursor: 'end', origin: ctx.origin });
+    setOpenDoc(block.id);
+  };
 
   const remove = () => {
     if (window.confirm('Delete this document?'))
@@ -40,7 +47,7 @@ export function DocBlock({ block, ctx }: { block: Block; ctx: OutlineCtx }) {
       event.preventDefault();
       // Mod-Enter opens the editor; plain Enter adds a bullet below,
       // otherwise there is no way to keep writing after a document
-      if (event.metaKey || event.ctrlKey) setOpenDoc(block.id);
+      if (event.metaKey || event.ctrlKey) open();
       else actions.splitBlock(block.id, 0, ctx);
     } else if (event.key === 'Backspace' || event.key === 'Delete') {
       event.preventDefault();
@@ -56,14 +63,21 @@ export function DocBlock({ block, ctx }: { block: Block; ctx: OutlineCtx }) {
         role="button"
         aria-label="Document"
         onKeyDown={onKeyDown}
-        onClick={() => setFocus({ blockId: block.id, cursor: 'end' })}
-        onDoubleClick={() => setOpenDoc(block.id)}
+        onClick={() =>
+          setFocus({
+            blockId: block.id,
+            cursor: 'end',
+            origin: ctx.origin,
+          })
+        }
+        onDoubleClick={open}
         onBlur={() => {
           // mirror BlockEditor: clear focus unless it moved into the overlay
           setTimeout(() => {
             const state = useStore.getState();
             if (
               state.focused?.blockId === block.id &&
+              state.focused.origin === ctx.origin &&
               state.openDocId !== block.id &&
               document.activeElement !== wrapperRef.current
             ) {
@@ -89,7 +103,7 @@ export function DocBlock({ block, ctx }: { block: Block; ctx: OutlineCtx }) {
       <div className="absolute top-1/2 right-1.5 flex -translate-y-1/2 gap-1 md:opacity-0 md:group-hover/doc:opacity-100">
         <button
           title="Edit document"
-          onClick={() => setOpenDoc(block.id)}
+          onClick={open}
           className="rounded-md border border-border bg-background/90 p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
           <Maximize2 className="h-3.5 w-3.5" />
@@ -112,7 +126,7 @@ export function DocBlock({ block, ctx }: { block: Block; ctx: OutlineCtx }) {
             </div>
           }
         >
-          <DocEditor block={block} />
+          <DocEditor block={block} origin={ctx.origin} />
         </Suspense>
       )}
     </div>

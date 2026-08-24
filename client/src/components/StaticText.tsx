@@ -6,6 +6,8 @@ import {
 import { Hash, Repeat } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { api } from '@/lib/api';
+import { useRightPane } from '@/lib/rightPane';
+import { shouldOpenInRightPane } from '@/lib/rightPaneGesture';
 import { cn } from '@/lib/utils';
 
 function faviconUrl(url: string): string | null {
@@ -71,6 +73,7 @@ export function StaticText({
   className?: string;
 }) {
   const [, navigate] = useLocation();
+  const { open } = useRightPane();
 
   if (text === '') {
     // invisible placeholder keeps empty rows clickable at full height
@@ -78,10 +81,12 @@ export function StaticText({
   }
 
   const openPage = async (event: React.MouseEvent, title: string) => {
+    const openOnRight = shouldOpenInRightPane(event);
     event.preventDefault();
     event.stopPropagation();
     const page = await api.pageByTitle(title);
-    navigate(`/p/${page.id}`);
+    if (openOnRight) open({ kind: 'page', id: page.id });
+    else navigate(`/p/${page.id}`);
   };
 
   return (

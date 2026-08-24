@@ -22,9 +22,11 @@ import { BulletLink } from './Bullet';
 export function PageTasks({
   groups,
   currentPageTitle,
+  origin,
 }: {
   groups: LinkedRefGroup[];
   currentPageTitle: string;
+  origin?: string;
 }) {
   const storeBlocks = useStore((s) => s.blocks);
   const everOpen = useRef(new Set<string>());
@@ -88,7 +90,7 @@ export function PageTasks({
           <div key={block.id} className="flex items-start gap-1.5 py-[3px]">
             <BulletLink
               blockId={block.id}
-              ctx={{ pageId: block.pageId, rootParentId: null }}
+              ctx={{ pageId: block.pageId, rootParentId: null, origin }}
             />
             <div className="min-w-0 flex-1 leading-6">
               <BlockContent block={block} />

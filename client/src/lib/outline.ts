@@ -7,6 +7,8 @@ import type { Block } from '@taproot/shared';
 export interface OutlineCtx {
   pageId: string;
   rootParentId: string | null;
+  /** identifies this rendering when the same outline is visible in two panes */
+  origin?: string;
 }
 
 export function childrenOf(

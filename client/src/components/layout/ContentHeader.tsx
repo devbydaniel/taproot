@@ -1,4 +1,4 @@
-import { Search } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { Fragment, type ReactNode } from 'react';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
@@ -24,10 +24,14 @@ export function ContentHeader({
   crumbs,
   actions,
   scrolled,
+  showSidebarTrigger = true,
+  onClose,
 }: {
   crumbs: Crumb[];
   actions?: ReactNode;
   scrolled: boolean;
+  showSidebarTrigger?: boolean;
+  onClose?: () => void;
 }) {
   return (
     <header
@@ -35,11 +39,15 @@ export function ContentHeader({
       className="sticky top-0 z-10 flex min-h-9 items-center justify-between gap-4 border-b border-transparent bg-background/80 px-3 py-2 backdrop-blur-md transition-[border-color] duration-200 data-[scrolled=true]:border-border/40"
     >
       <div className="flex min-w-0 flex-1 items-center gap-2">
-        <SidebarTrigger />
-        <Separator
-          orientation="vertical"
-          className="mr-1 data-[orientation=vertical]:h-4"
-        />
+        {showSidebarTrigger && (
+          <>
+            <SidebarTrigger />
+            <Separator
+              orientation="vertical"
+              className="mr-1 data-[orientation=vertical]:h-4"
+            />
+          </>
+        )}
         <Breadcrumb>
           <BreadcrumbList>
             {crumbs.map((crumb, i) => (
@@ -63,6 +71,18 @@ export function ContentHeader({
       </div>
       <div className="flex shrink-0 items-center gap-1">
         {actions}
+        {onClose && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-7"
+            title="Close side pane"
+            aria-label="Close side pane"
+            onClick={onClose}
+          >
+            <X />
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="icon"

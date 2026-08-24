@@ -22,7 +22,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import * as actions from '@/actions';
 import { DailyAgenda } from '@/components/DailyAgenda';
-import { PageShell } from '@/components/layout/PageShell';
+import { PageShell, type PageSurface } from '@/components/layout/PageShell';
 import { LinkedRefs } from '@/components/LinkedRefs';
 import { OutlineTree } from '@/components/OutlineTree';
 import { PageTasks } from '@/components/PageTasks';
@@ -55,9 +55,18 @@ import {
 import { api } from '@/lib/api';
 import { installMergedBlocks, installPageSnapshot } from '@/lib/offline/sync';
 import { hasChildren, visibleOrder, type OutlineCtx } from '@/lib/outline';
+import { useRightPane } from '@/lib/rightPane';
 import { useStore } from '@/store';
 
-export function PageView({ id }: { id: string }) {
+export function PageView({
+  id,
+  surface = 'main',
+  onClose,
+}: {
+  id: string;
+  surface?: PageSurface;
+  onClose?: () => void;
+}) {
   const [payload, setPayload] = useState<PagePayload | null>(null);
   const [notFound, setNotFound] = useState(false);
   const remoteEpoch = useStore((s) => s.remoteEpoch);
@@ -79,7 +88,7 @@ export function PageView({ id }: { id: string }) {
         // toggles in the references section render immediately
         installMergedBlocks(data.linkedRefs.flatMap((g) => g.blocks));
         setPayload(data);
-        if (autoFocused.current !== id) {
+        if (surface === 'main' && autoFocused.current !== id) {
           autoFocused.current = id;
           const { blocks, setFocus } = useStore.getState();
           const order = visibleOrder(blocks, {
@@ -95,24 +104,38 @@ export function PageView({ id }: { id: string }) {
     return () => {
       cancelled = true;
     };
-  }, [id, remoteEpoch]);
+  }, [id, remoteEpoch, surface]);
 
   if (notFound) {
-    return (
-      <p className="p-10 text-muted-foreground">This page does not exist.</p>
+    const message = (
+      <p className="p-6 text-muted-foreground">This page does not exist.</p>
+    );
+    return surface === 'right' ? (
+      <PageShell crumbs={[]} surface={surface} onClose={onClose}>
+        {message}
+      </PageShell>
+    ) : (
+      message
     );
   }
-  if (!payload) return null;
+  if (!payload) {
+    return surface === 'right' ? (
+      <PageShell crumbs={[]} surface={surface} onClose={onClose}>
+        <p className="p-6 text-muted-foreground">Loading…</p>
+      </PageShell>
+    ) : null;
+  }
 
   const page = storePage ?? payload.page;
-  const ctx: OutlineCtx = { pageId: id, rootParentId: null };
+  const origin = surface === 'right' ? `right:page:${id}` : undefined;
+  const ctx: OutlineCtx = { pageId: id, rootParentId: null, origin };
 
   const clickBelow = () => {
     const { blocks, setFocus } = useStore.getState();
     const order = visibleOrder(blocks, ctx);
     const last = order[order.length - 1];
     if (last && last.text === '' && !hasChildren(blocks, last.id)) {
-      setFocus({ blockId: last.id, cursor: 'end' });
+      setFocus({ blockId: last.id, cursor: 'end', origin: ctx.origin });
     } else {
       actions.appendBlock(ctx);
     }
@@ -132,9 +155,11 @@ export function PageView({ id }: { id: string }) {
         <>
           <PagePinMenu pageId={id} />
           <PageRenameButton page={page} />
-          <PageDeleteButton page={page} />
+          <PageDeleteButton page={page} surface={surface} onClose={onClose} />
         </>
       }
+      surface={surface}
+      onClose={onClose}
     >
       <h1
         className={
@@ -144,7 +169,9 @@ export function PageView({ id }: { id: string }) {
         {isDaily ? dailyLabel(page.title) : page.title}
       </h1>
       {isDaily && <DailyNav title={page.title} />}
-      {isDaily && <DailyAgenda pageId={id} pageTitle={page.title} />}
+      {isDaily && (
+        <DailyAgenda pageId={id} pageTitle={page.title} origin={origin} />
+      )}
       {hasBlocks ? (
         <OutlineTree parentId={null} ctx={ctx} />
       ) : (
@@ -157,12 +184,17 @@ export function PageView({ id }: { id: string }) {
       )}
       <div className="h-24 cursor-text" onClick={clickBelow} />
       {!isDaily && (
-        <PageTasks groups={payload.linkedRefs} currentPageTitle={page.title} />
+        <PageTasks
+          groups={payload.linkedRefs}
+          currentPageTitle={page.title}
+          origin={origin}
+        />
       )}
       <LinkedRefs
         groups={payload.linkedRefs}
         currentPageId={payload.page.id}
         currentPageTitle={page.title}
+        origin={origin}
       />
     </PageShell>
   );
@@ -244,8 +276,17 @@ function PageRenameButton({ page }: { page: Page }) {
   );
 }
 
-function PageDeleteButton({ page }: { page: Page }) {
-  const [, navigate] = useLocation();
+function PageDeleteButton({
+  page,
+  surface,
+  onClose,
+}: {
+  page: Page;
+  surface: PageSurface;
+  onClose?: () => void;
+}) {
+  const [location, navigate] = useLocation();
+  const { target: rightTarget, close: closeRight } = useRightPane();
   const [open, setOpen] = useState(false);
 
   return (
@@ -276,7 +317,11 @@ function PageDeleteButton({ page }: { page: Page }) {
             onClick={() => {
               if (!actions.deletePage(page.id)) return;
               setOpen(false);
-              navigate('/pages');
+              if (rightTarget?.kind === 'page' && rightTarget.id === page.id)
+                closeRight();
+              else if (surface === 'right') onClose?.();
+              if (surface === 'main' || location === `/p/${page.id}`)
+                navigate('/pages');
             }}
           >
             Delete page

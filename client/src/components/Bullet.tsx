@@ -8,6 +8,8 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import type { OutlineCtx } from '@/lib/outline';
+import { useRightPane } from '@/lib/rightPane';
+import { shouldOpenInRightPane } from '@/lib/rightPaneGesture';
 import { cn } from '@/lib/utils';
 
 /**
@@ -25,12 +27,22 @@ export function BulletLink({
   title?: string;
   collapsed?: boolean;
 }) {
+  const { target, open, close } = useRightPane();
+
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <Link
           href={`/b/${blockId}`}
           title={title}
+          // wouter deliberately skips modified clicks before calling onClick,
+          // so capture the Shift gesture before its navigation handler.
+          onClickCapture={(event) => {
+            if (!shouldOpenInRightPane(event)) return;
+            event.preventDefault();
+            event.stopPropagation();
+            open({ kind: 'block', id: blockId });
+          }}
           className="mt-[5px] flex h-4 w-4 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-accent"
         >
           <span
@@ -46,7 +58,10 @@ export function BulletLink({
       <ContextMenuContent>
         <ContextMenuItem
           variant="destructive"
-          onSelect={() => deleteBlock(blockId, ctx)}
+          onSelect={() => {
+            deleteBlock(blockId, ctx);
+            if (target?.kind === 'block' && target.id === blockId) close();
+          }}
         >
           <Trash2 />
           Delete

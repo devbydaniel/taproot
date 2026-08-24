@@ -21,8 +21,10 @@ export function DrawingBlock({
   block: Block;
   ctx: OutlineCtx;
 }) {
-  const isFocused = useStore((s) => s.focused?.blockId === block.id);
-  const isOpen = useStore((s) => s.openDrawingId === block.id);
+  const isFocused = useStore(
+    (s) => s.focused?.blockId === block.id && s.focused.origin === ctx.origin,
+  );
+  const isOpen = useStore((s) => s.openDrawingId === block.id && isFocused);
   const setFocus = useStore((s) => s.setFocus);
   const setOpenDrawing = useStore((s) => s.setOpenDrawing);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -31,6 +33,11 @@ export function DrawingBlock({
   useEffect(() => {
     if (isFocused && !isOpen) wrapperRef.current?.focus();
   }, [isFocused, isOpen]);
+
+  const open = () => {
+    setFocus({ blockId: block.id, cursor: 'end', origin: ctx.origin });
+    setOpenDrawing(block.id);
+  };
 
   const remove = () => {
     if (window.confirm('Delete this drawing?'))
@@ -46,7 +53,7 @@ export function DrawingBlock({
       event.preventDefault();
       // Mod-Enter opens the editor; plain Enter adds a bullet below,
       // otherwise there is no way to keep writing after a drawing
-      if (event.metaKey || event.ctrlKey) setOpenDrawing(block.id);
+      if (event.metaKey || event.ctrlKey) open();
       else actions.splitBlock(block.id, 0, ctx);
     } else if (event.key === 'Backspace' || event.key === 'Delete') {
       event.preventDefault();
@@ -62,14 +69,21 @@ export function DrawingBlock({
         role="button"
         aria-label="Drawing"
         onKeyDown={onKeyDown}
-        onClick={() => setFocus({ blockId: block.id, cursor: 'end' })}
-        onDoubleClick={() => setOpenDrawing(block.id)}
+        onClick={() =>
+          setFocus({
+            blockId: block.id,
+            cursor: 'end',
+            origin: ctx.origin,
+          })
+        }
+        onDoubleClick={open}
         onBlur={() => {
           // mirror BlockEditor: clear focus unless it moved into the overlay
           setTimeout(() => {
             const state = useStore.getState();
             if (
               state.focused?.blockId === block.id &&
+              state.focused.origin === ctx.origin &&
               state.openDrawingId !== block.id &&
               document.activeElement !== wrapperRef.current
             ) {
@@ -87,7 +101,7 @@ export function DrawingBlock({
       <div className="absolute top-1.5 right-1.5 flex gap-1 md:opacity-0 md:group-hover/drawing:opacity-100">
         <button
           title="Edit drawing"
-          onClick={() => setOpenDrawing(block.id)}
+          onClick={open}
           className="rounded-md border border-border bg-background/90 p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
           <Maximize2 className="h-3.5 w-3.5" />
@@ -110,7 +124,7 @@ export function DrawingBlock({
             </div>
           }
         >
-          <DrawingEditor block={block} />
+          <DrawingEditor block={block} origin={ctx.origin} />
         </Suspense>
       )}
     </div>

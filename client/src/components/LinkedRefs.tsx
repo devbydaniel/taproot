@@ -20,10 +20,12 @@ export function LinkedRefs({
   groups,
   currentPageId,
   currentPageTitle,
+  origin,
 }: {
   groups: LinkedRefGroup[];
   currentPageId: string;
   currentPageTitle: string;
+  origin?: string;
 }) {
   const storeBlocks = useStore((s) => s.blocks);
   const rootBlock = (id: string) => storeBlocks[id];
@@ -85,6 +87,7 @@ export function LinkedRefs({
             key={group.page.id}
             group={group}
             hostPageId={currentPageId}
+            origin={origin}
           />
         ))
       )}
@@ -96,11 +99,14 @@ export function LinkedRefs({
 function RefGroupCard({
   group,
   hostPageId,
+  origin,
 }: {
   group: LinkedRefGroup;
   /** the page whose refs section this is — scopes the focus origin so the
    * same block rendered elsewhere (outline, another day's refs) stays static */
   hostPageId: string;
+  /** pane origin, when this references section is rendered outside the main view */
+  origin?: string;
 }) {
   const storeBlocks = useStore((s) => s.blocks);
   const byParent = useMemo(() => {
@@ -121,8 +127,14 @@ function RefGroupCard({
     .map((id) => storeBlocks[id])
     .filter((block): block is Block => block !== undefined);
 
-  const ctx: OutlineCtx = { pageId: group.page.id, rootParentId: null };
-  const origin = `refs:${hostPageId}`;
+  const focusOrigin = origin
+    ? `${origin}:refs:${hostPageId}`
+    : `refs:${hostPageId}`;
+  const ctx: OutlineCtx = {
+    pageId: group.page.id,
+    rootParentId: null,
+    origin: focusOrigin,
+  };
 
   return (
     <div className="mb-6 rounded-xl border bg-muted/30 px-4 py-3">
@@ -133,7 +145,7 @@ function RefGroupCard({
             ancestors={group.ancestors[root.id] ?? []}
             className="mb-1 font-medium"
           />
-          <RefRow block={root} byParent={byParent} ctx={ctx} origin={origin} />
+          <RefRow block={root} byParent={byParent} ctx={ctx} />
         </div>
       ))}
     </div>
@@ -144,12 +156,10 @@ function RefRow({
   block,
   byParent,
   ctx,
-  origin,
 }: {
   block: Block;
   byParent: Map<string, Block[]>;
   ctx: OutlineCtx;
-  origin: string;
 }) {
   const live = useStore((s) => s.blocks[block.id]);
   const children = byParent.get(block.id) ?? [];
@@ -163,7 +173,7 @@ function RefRow({
             block={live}
             ctx={ctx}
             variant="ref"
-            origin={origin}
+            origin={ctx.origin}
           />
         ) : (
           <div className="min-w-0 flex-1 leading-6">
@@ -179,7 +189,6 @@ function RefRow({
               block={child}
               byParent={byParent}
               ctx={ctx}
-              origin={origin}
             />
           ))}
         </div>

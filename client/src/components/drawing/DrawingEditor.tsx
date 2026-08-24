@@ -27,7 +27,13 @@ interface PendingScene {
  * importer of `@excalidraw/excalidraw` itself (and its CSS), so the whole
  * library stays in a lazy chunk — see DrawingBlock's React.lazy.
  */
-export default function DrawingEditor({ block }: { block: Block }) {
+export default function DrawingEditor({
+  block,
+  origin,
+}: {
+  block: Block;
+  origin?: string;
+}) {
   const theme = useTheme();
   // parsed once on mount: while open, this editor is the source of truth
   const [initialScene] = useState(() => parseScene(block.data));
@@ -81,7 +87,7 @@ export default function DrawingEditor({ block }: { block: Block }) {
     persist();
     const { setOpenDrawing, setFocus } = useStore.getState();
     setOpenDrawing(null);
-    setFocus({ blockId: block.id, cursor: 'end' });
+    setFocus({ blockId: block.id, cursor: 'end', origin });
   };
 
   return (

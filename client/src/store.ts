@@ -362,7 +362,11 @@ export const useStore = create<OutlineState>((set) => ({
       for (const op of ops) {
         if (op.type !== 'set_collapsed' || !op.collapsed || !focused) continue;
         if (isStrictDescendant(blocks, focused.blockId, op.id))
-          focused = { blockId: op.id, cursor: 'end' };
+          focused = {
+            blockId: op.id,
+            cursor: 'end',
+            origin: focused.origin,
+          };
       }
       return { blocks, pages, pinFolders, focused };
     }),

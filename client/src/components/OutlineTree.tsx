@@ -63,7 +63,7 @@ function BlockRow({ block, ctx }: { block: Block; ctx: OutlineCtx }) {
             <DocBlock block={block} ctx={ctx} />
           </div>
         ) : (
-          <EditableBlockText block={block} ctx={ctx} />
+          <EditableBlockText block={block} ctx={ctx} origin={ctx.origin} />
         )}
       </div>
       {hasKids && !block.collapsed && (

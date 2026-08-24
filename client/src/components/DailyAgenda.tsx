@@ -33,9 +33,11 @@ interface Chip {
 export function DailyAgenda({
   pageId,
   pageTitle,
+  origin,
 }: {
   pageId: string;
   pageTitle: string;
+  origin?: string;
 }) {
   const [items, setItems] = useState<TaskListItem[] | null>(null);
   const remoteEpoch = useStore((s) => s.remoteEpoch);
@@ -127,12 +129,13 @@ export function DailyAgenda({
 
   return (
     <section className="mb-6 rounded-xl border bg-muted/30 px-4 py-3">
-      <AgendaSection title="Overdue" alert rows={overdueRows} />
+      <AgendaSection title="Overdue" alert rows={overdueRows} origin={origin} />
       <AgendaSection
         title={pageTitle === today ? 'Due today' : 'Due this day'}
         rows={dueRows}
+        origin={origin}
       />
-      <AgendaSection title="On this page" rows={onPageRows} />
+      <AgendaSection title="On this page" rows={onPageRows} origin={origin} />
     </section>
   );
 }
@@ -141,10 +144,12 @@ function AgendaSection({
   title,
   rows,
   alert = false,
+  origin,
 }: {
   title: string;
   rows: { block: Block; chip: Chip | null }[];
   alert?: boolean;
+  origin?: string;
 }) {
   if (rows.length === 0) return null;
   const openCount = rows.filter(
@@ -165,7 +170,7 @@ function AgendaSection({
         <div key={block.id} className="flex items-start gap-1.5 py-[3px]">
           <BulletLink
             blockId={block.id}
-            ctx={{ pageId: block.pageId, rootParentId: null }}
+            ctx={{ pageId: block.pageId, rootParentId: null, origin }}
           />
           <div className="min-w-0 flex-1 leading-6">
             <BlockContent block={block} />

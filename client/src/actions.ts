@@ -298,7 +298,7 @@ export function splitBlock(blockId: string, cursor: number, _ctx: OutlineCtx) {
       text: after,
     },
   ]);
-  setFocus({ blockId: newId, cursor: 'start' });
+  setFocus({ blockId: newId, cursor: 'start', origin: _ctx.origin });
 }
 
 /** Tab: become the last child of the previous sibling. */
@@ -324,7 +324,7 @@ export function indentBlock(blockId: string, cursor: number, _ctx: OutlineCtx) {
       : []),
     { type: 'move_block', id: blockId, parentId: prev.id, orderKey },
   ]);
-  setFocus({ blockId, cursor });
+  setFocus({ blockId, cursor, origin: _ctx.origin });
 }
 
 /** Shift-Tab: become the sibling right after the current parent. */
@@ -352,7 +352,7 @@ export function outdentBlock(
   dispatch([
     { type: 'move_block', id: blockId, parentId: parent.parentId, orderKey },
   ]);
-  setFocus({ blockId, cursor });
+  setFocus({ blockId, cursor, origin: ctx.origin });
   return true;
 }
 
@@ -366,7 +366,9 @@ export function deleteBlock(blockId: string, ctx: OutlineCtx) {
   pendingText.delete(blockId);
   flushText();
   dispatch([{ type: 'delete_block', id: blockId }]);
-  setFocus(prev ? { blockId: prev.id, cursor: 'end' } : null);
+  setFocus(
+    prev ? { blockId: prev.id, cursor: 'end', origin: ctx.origin } : null,
+  );
 }
 
 /** Backspace at position 0: delete the block if it is empty and childless. */
@@ -382,7 +384,7 @@ export function deleteEmptyBlock(blockId: string, ctx: OutlineCtx): boolean {
 // --- drawing blocks ---
 
 /** '/draw' + Enter: turn the block into a drawing and start drawing. */
-export function convertToDrawing(blockId: string) {
+export function convertToDrawing(blockId: string, origin?: string) {
   const { blocks, setFocus, setOpenDrawing } = useStore.getState();
   if (!blocks[blockId]) return;
   pendingText.delete(blockId);
@@ -391,7 +393,7 @@ export function convertToDrawing(blockId: string) {
     { type: 'update_text', id: blockId, text: '' },
     { type: 'set_kind', id: blockId, kind: 'drawing' },
   ]);
-  setFocus({ blockId, cursor: 'end' });
+  setFocus({ blockId, cursor: 'end', origin });
   setOpenDrawing(blockId);
 }
 
@@ -403,7 +405,7 @@ export function saveDrawing(blockId: string, data: string) {
 // --- doc blocks ---
 
 /** '/write' + Enter: turn the block into a markdown doc and start writing. */
-export function convertToDoc(blockId: string) {
+export function convertToDoc(blockId: string, origin?: string) {
   const { blocks, setFocus, setOpenDoc } = useStore.getState();
   if (!blocks[blockId]) return;
   pendingText.delete(blockId);
@@ -412,7 +414,7 @@ export function convertToDoc(blockId: string) {
     { type: 'update_text', id: blockId, text: '' },
     { type: 'set_kind', id: blockId, kind: 'doc' },
   ]);
-  setFocus({ blockId, cursor: 'end' });
+  setFocus({ blockId, cursor: 'end', origin });
   setOpenDoc(blockId);
 }
 
@@ -433,7 +435,7 @@ export function focusNeighbor(
   const index = order.findIndex((b) => b.id === blockId);
   const target = order[index + dir];
   if (!target) return false;
-  setFocus({ blockId: target.id, cursor });
+  setFocus({ blockId: target.id, cursor, origin: ctx.origin });
   return true;
 }
 
@@ -457,5 +459,5 @@ export function appendBlock(ctx: OutlineCtx) {
       text: '',
     },
   ]);
-  setFocus({ blockId: id, cursor: 'start' });
+  setFocus({ blockId: id, cursor: 'start', origin: ctx.origin });
 }

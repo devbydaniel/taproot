@@ -40,7 +40,13 @@ const editorTheme = EditorView.theme({
  * importer of `@codemirror/lang-markdown` (and its highlight deps), so they
  * stay in a lazy chunk — see DocBlock's React.lazy.
  */
-export default function DocEditor({ block }: { block: Block }) {
+export default function DocEditor({
+  block,
+  origin,
+}: {
+  block: Block;
+  origin?: string;
+}) {
   // captured once on mount: while open, this editor is the source of truth.
   // Remote ops (e.g. a PUT /api/docs) update the store but not the open
   // editor; the next debounced save last-writer-wins, like DrawingEditor.
@@ -66,7 +72,7 @@ export default function DocEditor({ block }: { block: Block }) {
     persist();
     const { setOpenDoc, setFocus } = useStore.getState();
     setOpenDoc(null);
-    setFocus({ blockId: block.id, cursor: 'end' });
+    setFocus({ blockId: block.id, cursor: 'end', origin });
   };
   const closeRef = useRef(close);
   closeRef.current = close;

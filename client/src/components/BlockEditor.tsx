@@ -87,7 +87,7 @@ const SLASH_COMMANDS = [
   { name: 'write', detail: 'write a document', run: actions.convertToDoc },
 ] as const;
 
-function makeSlashCompletionSource(blockId: string) {
+function makeSlashCompletionSource(blockId: string, origin?: string) {
   return (context: CompletionContext): CompletionResult | null => {
     const match = context.matchBefore(/^\/[a-zA-Z]*$/);
     if (!match) return null;
@@ -99,7 +99,7 @@ function makeSlashCompletionSource(blockId: string) {
     ).map((cmd) => ({
       label: `/${cmd.name}`,
       detail: cmd.detail,
-      apply: () => cmd.run(blockId),
+      apply: () => cmd.run(blockId, origin),
     }));
     if (options.length === 0) return null;
     return { from: match.from, filter: false, options };
@@ -200,7 +200,7 @@ export function BlockEditor({
               (cmd) => view.state.doc.toString().trim() === `/${cmd.name}`,
             );
             if (slash) {
-              slash.run(blockId);
+              slash.run(blockId, origin);
               return true;
             }
             // Enter on an empty bullet outdents instead of splitting
@@ -335,7 +335,7 @@ export function BlockEditor({
             override: structural
               ? [
                   pageReferenceCompletionSource,
-                  makeSlashCompletionSource(blockId),
+                  makeSlashCompletionSource(blockId, origin),
                 ]
               : [pageReferenceCompletionSource],
           }),
