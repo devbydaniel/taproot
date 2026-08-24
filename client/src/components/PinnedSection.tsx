@@ -67,6 +67,8 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { buildPinRows, type PinRow } from '@/lib/pinTree';
+import { useRightPane } from '@/lib/rightPane';
+import { shouldOpenInRightPane } from '@/lib/rightPaneGesture';
 import { cn } from '@/lib/utils';
 import { useStore } from '@/store';
 
@@ -192,6 +194,7 @@ function PageRow({
   folders: PinFolder[];
 }) {
   const { page, folderId } = row;
+  const { open } = useRightPane();
   return (
     <SortableRow
       id={page.id}
@@ -199,7 +202,16 @@ function PageRow({
       className={cn(folderId !== null && 'ml-pin-indent')}
     >
       <SidebarMenuButton asChild isActive={active}>
-        <Link href={`/p/${page.id}`} draggable={false}>
+        <Link
+          href={`/p/${page.id}`}
+          draggable={false}
+          onClickCapture={(event) => {
+            if (!shouldOpenInRightPane(event)) return;
+            event.preventDefault();
+            event.stopPropagation();
+            open({ kind: 'page', id: page.id });
+          }}
+        >
           <span>{page.title}</span>
         </Link>
       </SidebarMenuButton>
