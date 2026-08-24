@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   extractPageReferences,
   extractWikilinks,
+  findOpenPageReference,
   findPageReferences,
   findWikilinks,
+  formatPageTag,
   removePageReferences,
   renamePageReferences,
   segmentText,
@@ -30,6 +32,60 @@ describe('extractWikilinks', () => {
     expect(extractWikilinks('#[[Tagged Page]] [[Linked Page]]')).toEqual([
       'Linked Page',
     ]);
+  });
+});
+
+describe('open page references', () => {
+  it('finds unfinished links and tags at the cursor', () => {
+    expect(findOpenPageReference('see [[Proj')).toEqual({
+      type: 'link',
+      query: 'Proj',
+      from: 6,
+    });
+    expect(findOpenPageReference('see #proj')).toEqual({
+      type: 'tag',
+      query: 'proj',
+      from: 4,
+    });
+    expect(findOpenPageReference('#')).toEqual({
+      type: 'tag',
+      query: '',
+      from: 0,
+    });
+  });
+
+  it('treats an unfinished bracketed tag as a bracketed reference', () => {
+    expect(findOpenPageReference('see #[[Project')).toEqual({
+      type: 'link',
+      query: 'Project',
+      from: 7,
+    });
+  });
+
+  it('supports completion at a cursor before the end of the text', () => {
+    expect(findOpenPageReference('see #proj later', 9)).toEqual({
+      type: 'tag',
+      query: 'proj',
+      from: 4,
+    });
+  });
+
+  it('rejects hashes inside words, repeated hashes, and URL fragments', () => {
+    expect(findOpenPageReference('word#suffix')).toBeNull();
+    expect(findOpenPageReference('##tag')).toBeNull();
+    expect(findOpenPageReference('https://example.com/#fragment')).toBeNull();
+  });
+});
+
+describe('formatPageTag', () => {
+  it('uses bare tags for representable titles', () => {
+    expect(formatPageTag('project')).toBe('#project');
+    expect(formatPageTag('two-words')).toBe('#two-words');
+    expect(formatPageTag('日本語')).toBe('#日本語');
+  });
+
+  it('uses bracketed tags for multi-word titles', () => {
+    expect(formatPageTag('Project Alpha')).toBe('#[[Project Alpha]]');
   });
 });
 

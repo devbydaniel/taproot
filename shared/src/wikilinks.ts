@@ -1,6 +1,7 @@
 const PAGE_REFERENCE =
   /(?<![\p{L}\p{N}_/#=?&])#(?:\[\[([^[\]\n]+?)\]\]|([\p{L}\p{N}_](?:[\p{L}\p{N}_-]*[\p{L}\p{N}_])?))|\[\[([^[\]\n]+?)\]\]/gu;
 const SINGLE_TAG_TITLE = /^[\p{L}\p{N}_](?:[\p{L}\p{N}_-]*[\p{L}\p{N}_])?$/u;
+const INVALID_TAG_PRECEDER = /[\p{L}\p{N}_/#=?&]/u;
 
 export interface PageReference {
   type: 'link' | 'tag';
@@ -11,6 +12,45 @@ export interface PageReference {
   /** Span of the title itself, excluding [[...]], #[[...]], or # markup. */
   titleFrom: number;
   titleTo: number;
+}
+
+export interface OpenPageReference {
+  type: 'link' | 'tag';
+  query: string;
+  /** Start of the text that completion should replace. */
+  from: number;
+}
+
+/**
+ * Find an unfinished page reference immediately before the cursor.
+ * Bracketed tags (`#[[query`) are returned as links because completion keeps
+ * their existing `#` prefix and only replaces the title after `[[`.
+ */
+export function findOpenPageReference(
+  text: string,
+  cursor = text.length,
+): OpenPageReference | null {
+  const before = text.slice(0, cursor);
+  const link = /\[\[([^[\]\n]*)$/u.exec(before);
+  if (link) {
+    const query = link[1] ?? '';
+    return {
+      type: 'link',
+      query,
+      from: cursor - query.length,
+    };
+  }
+
+  const tag = /#([\p{L}\p{N}_-]*)$/u.exec(before);
+  if (!tag) return null;
+  const previous = tag.index === 0 ? '' : before.charAt(tag.index - 1);
+  if (previous && INVALID_TAG_PRECEDER.test(previous)) return null;
+  return { type: 'tag', query: tag[1] ?? '', from: tag.index };
+}
+
+/** Render a page title using the shortest valid tag representation. */
+export function formatPageTag(title: string): string {
+  return SINGLE_TAG_TITLE.test(title) ? `#${title}` : `#[[${title}]]`;
 }
 
 /** All page-reference spans: [[links]], #tags, and #[[multi word tags]]. */
@@ -70,9 +110,7 @@ export function renamePageReferences(
   return rewritePageReferences(text, oldTitle, (reference) => {
     if (reference.type === 'link') return `[[${newTitle}]]`;
     if (reference.raw.startsWith('#[[')) return `#[[${newTitle}]]`;
-    return SINGLE_TAG_TITLE.test(newTitle)
-      ? `#${newTitle}`
-      : `#[[${newTitle}]]`;
+    return formatPageTag(newTitle);
   });
 }
 

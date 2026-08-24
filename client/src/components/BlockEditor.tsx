@@ -10,7 +10,9 @@ import { EditorState, Prec } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
 import {
   cycleTaskState,
+  findOpenPageReference,
   findPageReferences,
+  formatPageTag,
   shiftDailyTitle,
   suggestDailyTitles,
 } from '@taproot/shared';
@@ -35,22 +37,33 @@ interface Props {
   className?: string;
 }
 
-function wikiCompletionSource(
+function pageReferenceCompletionSource(
   context: CompletionContext,
 ): CompletionResult | null {
-  const match = context.matchBefore(/\[\[[^[\]]*$/);
-  if (!match) return null;
-  const raw = context.state.sliceDoc(match.from + 2, context.pos);
+  const reference = findOpenPageReference(
+    context.state.doc.toString(),
+    context.pos,
+  );
+  if (!reference) return null;
+  const raw = reference.query;
   const query = raw.toLowerCase();
+  const applyTitle =
+    reference.type === 'tag'
+      ? (title: string) => formatPageTag(title)
+      : (title: string) => `${title}]]`;
   // natural-language dates ("tomorrow", "next wed", "in 3 days") resolve to
-  // daily-page links; they rank above title matches and shadow duplicates
-  const dateOptions = suggestDailyTitles(raw).map((s) => ({
-    label: s.title,
-    detail: s.label,
-    apply: `${s.title}]]`,
-  }));
-  const dateTitles = new Set(dateOptions.map((o) => o.label));
-  const titles = useStore.getState().pages.map((p) => p.title);
+  // daily-page links; they rank above title matches and shadow duplicates.
+  // A direct #tag only suggests existing pages, while #[[ retains link parity.
+  const dateOptions =
+    reference.type === 'link'
+      ? suggestDailyTitles(raw).map((suggestion) => ({
+          label: suggestion.title,
+          detail: suggestion.label,
+          apply: applyTitle(suggestion.title),
+        }))
+      : [];
+  const dateTitles = new Set(dateOptions.map((option) => option.label));
+  const titles = useStore.getState().pages.map((page) => page.title);
   const options = [
     ...dateOptions,
     ...titles
@@ -59,10 +72,10 @@ function wikiCompletionSource(
           title.toLowerCase().includes(query) && !dateTitles.has(title),
       )
       .slice(0, 12)
-      .map((title) => ({ label: title, apply: `${title}]]` })),
+      .map((title) => ({ label: title, apply: applyTitle(title) })),
   ];
   if (options.length === 0) return null;
-  return { from: match.from + 2, options, filter: false };
+  return { from: reference.from, options, filter: false };
 }
 
 /**
@@ -320,8 +333,11 @@ export function BlockEditor({
           keymap.of([...historyKeymap, ...defaultKeymap]),
           autocompletion({
             override: structural
-              ? [wikiCompletionSource, makeSlashCompletionSource(blockId)]
-              : [wikiCompletionSource],
+              ? [
+                  pageReferenceCompletionSource,
+                  makeSlashCompletionSource(blockId),
+                ]
+              : [pageReferenceCompletionSource],
           }),
           EditorView.lineWrapping,
           singleLine,
