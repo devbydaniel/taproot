@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.19.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.18.0...taproot-v0.19.0) (2026-08-24)
+
+
+### Features
+
+* add bullet context menu ([f0a1e12](https://github.com/devbydaniel/taproot/commit/f0a1e123b2a5f8733d738a24fd61efc29399216d))
+* add shift-click page pane ([b8a6ceb](https://github.com/devbydaniel/taproot/commit/b8a6cebfd2aaee3a7f7165220485857dfe01b60b))
+* autocomplete page tags ([aeed42d](https://github.com/devbydaniel/taproot/commit/aeed42dd7ad854b049d645e9d978451dfbe3369f))
+* open pinned pages in side pane ([1ab54bb](https://github.com/devbydaniel/taproot/commit/1ab54bbaab9d9da0ddac203da039226ad2004c3c))
+
+
+### Bug Fixes
+
+* add clickable bullets to page tasks ([d5519a8](https://github.com/devbydaniel/taproot/commit/d5519a827d4c83683fa2a44b65b0caac43c77b52))
+
 ## [0.18.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.17.0...taproot-v0.18.0) (2026-08-18)
 
 
