@@ -12,6 +12,7 @@ import {
   useAssignedReferenceFilter,
 } from './AssignedReferenceFilter';
 import { BlockContent } from './BlockContent';
+import { BulletLink } from './Bullet';
 
 /**
  * Open tasks that link to this page, shown below the page content. Membership
@@ -85,8 +86,11 @@ export function PageTasks({
         </p>
       ) : (
         visibleRows.map((block) => (
-          <div key={block.id} className="py-[3px] leading-6">
-            <BlockContent block={block} />
+          <div key={block.id} className="flex items-start gap-1.5 py-[3px]">
+            <BulletLink href={`/b/${block.id}`} />
+            <div className="min-w-0 flex-1 leading-6">
+              <BlockContent block={block} />
+            </div>
           </div>
         ))
       )}
