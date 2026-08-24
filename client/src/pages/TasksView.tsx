@@ -76,14 +76,18 @@ export function TasksView() {
   // the row between sections immediately; the fetch only controls membership
   const buckets = useMemo(() => {
     if (!items) return null;
-    const live = items.map((item) => {
-      const block = blocks[item.block.id] ?? item.block;
-      return {
-        ...item,
-        block,
-        dueDate: taskDueDate(block.text),
-        hasPageLink: taskHasPageLink(block.text),
-      };
+    const live = items.flatMap((item) => {
+      const block = blocks[item.block.id];
+      return block
+        ? [
+            {
+              ...item,
+              block,
+              dueDate: taskDueDate(block.text),
+              hasPageLink: taskHasPageLink(block.text),
+            },
+          ]
+        : [];
     });
     return bucketTasks(live, todayTitle());
   }, [items, blocks]);
@@ -389,7 +393,10 @@ function TaskRow({
             selected && 'bg-accent',
           )}
         >
-          <BulletLink href={`/b/${id}`} />
+          <BulletLink
+            blockId={id}
+            ctx={{ pageId: item.block.pageId, rootParentId: null }}
+          />
           <div className="min-w-0 flex-1 leading-6">
             <BlockContent block={item.block} />
             {age && (

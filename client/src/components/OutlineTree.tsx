@@ -49,7 +49,8 @@ function BlockRow({ block, ctx }: { block: Block; ctx: OutlineCtx }) {
           </button>
         )}
         <BulletLink
-          href={`/b/${block.id}`}
+          blockId={block.id}
+          ctx={ctx}
           title="Zoom in"
           collapsed={hasKids && block.collapsed}
         />

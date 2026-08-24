@@ -163,7 +163,10 @@ function AgendaSection({
       </h2>
       {rows.map(({ block, chip }) => (
         <div key={block.id} className="flex items-start gap-1.5 py-[3px]">
-          <BulletLink href={`/b/${block.id}`} />
+          <BulletLink
+            blockId={block.id}
+            ctx={{ pageId: block.pageId, rootParentId: null }}
+          />
           <div className="min-w-0 flex-1 leading-6">
             <BlockContent block={block} />
           </div>

@@ -26,11 +26,10 @@ export function LinkedRefs({
   currentPageTitle: string;
 }) {
   const storeBlocks = useStore((s) => s.blocks);
-  const rootBlock = (group: LinkedRefGroup, id: string) =>
-    storeBlocks[id] ?? group.blocks.find((block) => block.id === id);
+  const rootBlock = (id: string) => storeBlocks[id];
   const rootTexts = groups.flatMap((group) =>
     group.rootIds.flatMap((id) => {
-      const block = rootBlock(group, id);
+      const block = rootBlock(id);
       return block ? [block.text] : [];
     }),
   );
@@ -41,7 +40,7 @@ export function LinkedRefs({
   );
   const visibleGroups = groups.flatMap((group) => {
     const rootIds = group.rootIds.filter((id) => {
-      const block = rootBlock(group, id);
+      const block = rootBlock(id);
       return (
         block !== undefined &&
         matchesAssignedReferenceFilter(
@@ -103,6 +102,7 @@ function RefGroupCard({
    * same block rendered elsewhere (outline, another day's refs) stays static */
   hostPageId: string;
 }) {
+  const storeBlocks = useStore((s) => s.blocks);
   const byParent = useMemo(() => {
     const map = new Map<string, Block[]>();
     for (const block of group.blocks) {
@@ -118,7 +118,7 @@ function RefGroupCard({
   }, [group]);
 
   const roots = group.rootIds
-    .map((id) => group.blocks.find((block) => block.id === id))
+    .map((id) => storeBlocks[id])
     .filter((block): block is Block => block !== undefined);
 
   const ctx: OutlineCtx = { pageId: group.page.id, rootParentId: null };
@@ -151,13 +151,13 @@ function RefRow({
   ctx: OutlineCtx;
   origin: string;
 }) {
-  // prefer the store's copy so checkbox toggles render immediately
-  const live = useStore((s) => s.blocks[block.id]) ?? block;
+  const live = useStore((s) => s.blocks[block.id]);
   const children = byParent.get(block.id) ?? [];
+  if (!live) return null;
   return (
     <div>
       <div className="flex items-start gap-1.5 py-[3px]">
-        <BulletLink href={`/b/${block.id}`} />
+        <BulletLink blockId={block.id} ctx={ctx} />
         {live.kind === 'text' ? (
           <EditableBlockText
             block={live}

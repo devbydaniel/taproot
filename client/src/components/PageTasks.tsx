@@ -29,10 +29,9 @@ export function PageTasks({
   const storeBlocks = useStore((s) => s.blocks);
   const everOpen = useRef(new Set<string>());
 
-  // the referencing blocks themselves, preferring the live store copy
   const roots = groups.flatMap((group) =>
     group.rootIds
-      .map((id) => storeBlocks[id] ?? group.blocks.find((b) => b.id === id))
+      .map((id) => storeBlocks[id])
       .filter((block): block is Block => block !== undefined),
   );
 
@@ -87,7 +86,10 @@ export function PageTasks({
       ) : (
         visibleRows.map((block) => (
           <div key={block.id} className="flex items-start gap-1.5 py-[3px]">
-            <BulletLink href={`/b/${block.id}`} />
+            <BulletLink
+              blockId={block.id}
+              ctx={{ pageId: block.pageId, rootParentId: null }}
+            />
             <div className="min-w-0 flex-1 leading-6">
               <BlockContent block={block} />
             </div>
