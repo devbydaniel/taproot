@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.19.0...taproot-v0.20.0) (2026-08-30)
+
+
+### Features
+
+* add mobile block editing toolbar ([91ca846](https://github.com/devbydaniel/taproot/commit/91ca846d30be0a45ce1389b449d5efc3e2be4012))
+
 ## [0.19.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.18.0...taproot-v0.19.0) (2026-08-24)
 
 
