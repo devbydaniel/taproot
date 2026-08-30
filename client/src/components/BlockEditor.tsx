@@ -18,9 +18,10 @@ import {
 } from '@taproot/shared';
 import { useEffect, useRef } from 'react';
 import * as actions from '@/actions';
-import type { OutlineCtx } from '@/lib/outline';
+import { siblingsOf, type OutlineCtx } from '@/lib/outline';
 import { cn } from '@/lib/utils';
 import { useStore } from '@/store';
+import { MobileBlockToolbar } from './MobileBlockToolbar';
 
 interface Props {
   blockId: string;
@@ -130,6 +131,31 @@ export function BlockEditor({
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const focused = useStore((s) => s.focused);
+  const canIndent = useStore((s) => {
+    const block = s.blocks[blockId];
+    if (!block) return false;
+    return (
+      siblingsOf(s.blocks, block).findIndex((item) => item.id === blockId) > 0
+    );
+  });
+  const canOutdent = useStore((s) => {
+    const block = s.blocks[blockId];
+    return Boolean(
+      block?.parentId &&
+      block.parentId !== ctx.rootParentId &&
+      s.blocks[block.parentId],
+    );
+  });
+
+  const indent = () => {
+    const view = viewRef.current;
+    if (view) actions.indentBlock(blockId, view.state.selection.main.head, ctx);
+  };
+  const outdent = () => {
+    const view = viewRef.current;
+    if (view)
+      actions.outdentBlock(blockId, view.state.selection.main.head, ctx);
+  };
 
   useEffect(() => {
     const container = containerRef.current;
@@ -391,13 +417,23 @@ export function BlockEditor({
   }, [focused, blockId, origin]);
 
   return (
-    <div
-      ref={containerRef}
-      className={cn(
-        'w-full',
-        variant === 'title' && 'text-lg font-semibold',
-        className,
+    <>
+      <div
+        ref={containerRef}
+        className={cn(
+          'w-full',
+          variant === 'title' && 'text-lg font-semibold',
+          className,
+        )}
+      />
+      {variant === 'block' && (
+        <MobileBlockToolbar
+          canIndent={canIndent}
+          canOutdent={canOutdent}
+          onIndent={indent}
+          onOutdent={outdent}
+        />
       )}
-    />
+    </>
   );
 }
