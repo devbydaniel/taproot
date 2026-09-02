@@ -64,7 +64,7 @@ export function TasksView() {
     let cancelled = false;
     void api.getTasks().then((data) => {
       if (cancelled) return;
-      installMergedBlocks(data.tasks.map((item) => item.block));
+      installMergedBlocks(data.blocks ?? data.tasks.map((item) => item.block));
       setItems(data.tasks);
     });
     return () => {

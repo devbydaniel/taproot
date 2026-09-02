@@ -170,7 +170,12 @@ export function PageView({
       </h1>
       {isDaily && <DailyNav title={page.title} />}
       {isDaily && (
-        <DailyAgenda pageId={id} pageTitle={page.title} origin={origin} />
+        <DailyAgenda
+          key={id}
+          pageId={id}
+          pageTitle={page.title}
+          origin={origin}
+        />
       )}
       {hasBlocks ? (
         <OutlineTree parentId={null} ctx={ctx} />

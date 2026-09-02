@@ -70,6 +70,8 @@ export interface TaskListItem {
 
 export interface TasksPayload {
   tasks: TaskListItem[];
+  /** Task roots and their descendants, for expandable task rows. Optional for cached pre-expansion payloads. */
+  blocks?: Block[];
 }
 
 /** One day of the journal: a daily page plus its full flat block list. */

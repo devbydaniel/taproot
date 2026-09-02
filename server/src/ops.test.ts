@@ -666,7 +666,7 @@ describe('getTaskList', () => {
     expect(item?.page.title).toBe('2026-07-10');
   });
 
-  it('lists nested open tasks as flat items and tracks text updates', () => {
+  it('lists nested open tasks as flat items, includes their subtrees, and tracks text updates', () => {
     const home = setupPage('Home');
     applyOps(store, [
       { ...block('outer', home.id, 'TODO plan trip') },
@@ -678,18 +678,31 @@ describe('getTaskList', () => {
         orderKey: 'a0',
         text: 'TODO book hotel',
       },
+      {
+        type: 'create_block',
+        id: 'note',
+        pageId: home.id,
+        parentId: 'outer',
+        orderKey: 'a1',
+        text: 'compare refundable rates',
+      },
     ]);
-    expect(
-      getTaskList(store)
-        .tasks.map((i) => i.block.id)
-        .sort(),
-    ).toEqual(['inner', 'outer']);
+    const initial = getTaskList(store);
+    expect(initial.tasks.map((i) => i.block.id).sort()).toEqual([
+      'inner',
+      'outer',
+    ]);
+    expect(initial.blocks?.map((item) => item.id).sort()).toEqual([
+      'inner',
+      'note',
+      'outer',
+    ]);
 
     applyOps(store, [
       { type: 'update_text', id: 'inner', text: 'DONE book hotel' },
       { type: 'update_text', id: 'outer', text: 'plan trip' },
     ]);
-    expect(getTaskList(store).tasks).toHaveLength(0);
+    expect(getTaskList(store)).toMatchObject({ tasks: [], blocks: [] });
   });
 });
 

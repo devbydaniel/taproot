@@ -215,8 +215,9 @@ export function getTaskGroups(store: Store): LinkedRefGroup[] {
 
 /**
  * All open (TODO) tasks, flat, with due-date/page-link facts derived from
- * block text. Date-dependent bucketing is the client's job — "today" is the
- * client's today.
+ * block text, plus their deduplicated subtrees for expandable rows.
+ * Date-dependent bucketing is the client's job — "today" is the client's
+ * today.
  */
 export function getTaskList(store: Store): TasksPayload {
   const open = store.db
@@ -237,6 +238,32 @@ export function getTaskList(store: Store): TasksPayload {
           .all()
           .map((page) => [page.id, page] as const),
   );
+  const sourceBlocks =
+    pageIds.length === 0
+      ? []
+      : store.db
+          .select()
+          .from(blocks)
+          .where(inArray(blocks.pageId, pageIds))
+          .orderBy(asc(blocks.orderKey))
+          .all();
+  const childrenByPage = new Map(
+    [...blocksByPageMap(sourceBlocks)].map(([pageId, pageBlocks]) => [
+      pageId,
+      childrenMap(pageBlocks),
+    ]),
+  );
+  const seen = new Set<string>();
+  const taskBlocks: Block[] = [];
+  for (const root of open) {
+    const children = childrenByPage.get(root.pageId);
+    if (!children) continue;
+    for (const block of collectSubtree(children, root)) {
+      if (seen.has(block.id)) continue;
+      seen.add(block.id);
+      taskBlocks.push(block);
+    }
+  }
   return {
     tasks: open.flatMap((block) => {
       const page = pageById.get(block.pageId);
@@ -250,6 +277,7 @@ export function getTaskList(store: Store): TasksPayload {
         },
       ];
     }),
+    blocks: taskBlocks,
   };
 }
 
