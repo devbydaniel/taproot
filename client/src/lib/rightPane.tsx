@@ -10,7 +10,8 @@ import {
 import { useStore } from '@/store';
 
 export type RightPaneTarget =
-  { kind: 'page'; id: string } | { kind: 'block'; id: string };
+  | { kind: 'page'; id: string }
+  | { kind: 'block'; id: string; revealBlockId?: string };
 
 interface RightPaneContextValue {
   target: RightPaneTarget | null;

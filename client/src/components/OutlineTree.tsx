@@ -3,6 +3,7 @@ import { ChevronRight } from 'lucide-react';
 import { setCollapsed } from '@/actions';
 import { childrenOf, type OutlineCtx } from '@/lib/outline';
 import { useStore } from '@/store';
+import { cn } from '@/lib/utils';
 import { BulletLink } from './Bullet';
 import { DocBlock } from './doc/DocBlock';
 import { DrawingBlock } from './drawing/DrawingBlock';
@@ -11,29 +12,58 @@ import { EditableBlockText } from './EditableBlockText';
 export function OutlineTree({
   parentId,
   ctx,
+  forcedExpandedIds,
+  highlightedBlockId,
 }: {
   parentId: string | null;
   ctx: OutlineCtx;
+  forcedExpandedIds?: ReadonlySet<string>;
+  highlightedBlockId?: string;
 }) {
   const blocks = useStore((s) => s.blocks);
   const children = childrenOf(blocks, ctx.pageId, parentId);
   return (
     <div>
       {children.map((block) => (
-        <BlockRow key={block.id} block={block} ctx={ctx} />
+        <BlockRow
+          key={block.id}
+          block={block}
+          ctx={ctx}
+          forcedExpandedIds={forcedExpandedIds}
+          highlightedBlockId={highlightedBlockId}
+        />
       ))}
     </div>
   );
 }
 
-function BlockRow({ block, ctx }: { block: Block; ctx: OutlineCtx }) {
+function BlockRow({
+  block,
+  ctx,
+  forcedExpandedIds,
+  highlightedBlockId,
+}: {
+  block: Block;
+  ctx: OutlineCtx;
+  forcedExpandedIds?: ReadonlySet<string>;
+  highlightedBlockId?: string;
+}) {
   const hasKids = useStore((s) =>
     Object.values(s.blocks).some((b) => b.parentId === block.id),
   );
 
+  const forceExpanded = forcedExpandedIds?.has(block.id) ?? false;
+  const expanded = hasKids && (!block.collapsed || forceExpanded);
+
   return (
     <div>
-      <div className="group relative flex items-start gap-1.5 py-[3px]">
+      <div
+        data-outline-block-id={block.id}
+        className={cn(
+          'group relative flex items-start gap-1.5 rounded-md py-[3px] transition-colors',
+          highlightedBlockId === block.id && 'bg-accent ring-1 ring-ring/20',
+        )}
+      >
         {hasKids && (
           <button
             onClick={() => setCollapsed(block.id, !block.collapsed)}
@@ -43,7 +73,7 @@ function BlockRow({ block, ctx }: { block: Block; ctx: OutlineCtx }) {
             <ChevronRight
               className={
                 'h-3.5 w-3.5 transition-transform ' +
-                (block.collapsed ? '' : 'rotate-90')
+                (expanded ? 'rotate-90' : '')
               }
             />
           </button>
@@ -52,7 +82,7 @@ function BlockRow({ block, ctx }: { block: Block; ctx: OutlineCtx }) {
           blockId={block.id}
           ctx={ctx}
           title="Zoom in"
-          collapsed={hasKids && block.collapsed}
+          collapsed={hasKids && !expanded}
         />
         {block.kind === 'drawing' ? (
           <div className="min-w-0 flex-1 leading-6">
@@ -66,9 +96,14 @@ function BlockRow({ block, ctx }: { block: Block; ctx: OutlineCtx }) {
           <EditableBlockText block={block} ctx={ctx} origin={ctx.origin} />
         )}
       </div>
-      {hasKids && !block.collapsed && (
+      {expanded && (
         <div className="ml-outline-guide border-l border-border pl-outline-indent">
-          <OutlineTree parentId={block.id} ctx={ctx} />
+          <OutlineTree
+            parentId={block.id}
+            ctx={ctx}
+            forcedExpandedIds={forcedExpandedIds}
+            highlightedBlockId={highlightedBlockId}
+          />
         </div>
       )}
     </div>

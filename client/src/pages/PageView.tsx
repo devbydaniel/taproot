@@ -86,7 +86,12 @@ export function PageView({
         installPageSnapshot(id, data.blocks);
         // linked-ref blocks live on other pages; merge them so checkbox
         // toggles in the references section render immediately
-        installMergedBlocks(data.linkedRefs.flatMap((g) => g.blocks));
+        installMergedBlocks(
+          data.linkedRefs.flatMap((group) => [
+            ...Object.values(group.ancestors).flat(),
+            ...group.blocks,
+          ]),
+        );
         setPayload(data);
         if (surface === 'main' && autoFocused.current !== id) {
           autoFocused.current = id;

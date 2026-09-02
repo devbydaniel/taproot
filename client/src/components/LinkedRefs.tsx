@@ -145,7 +145,12 @@ function RefGroupCard({
             ancestors={group.ancestors[root.id] ?? []}
             className="mb-1 font-medium"
           />
-          <RefRow block={root} byParent={byParent} ctx={ctx} />
+          <RefRow
+            block={root}
+            byParent={byParent}
+            ctx={ctx}
+            contextRootBlockId={group.ancestors[root.id]?.[0]?.id ?? root.id}
+          />
         </div>
       ))}
     </div>
@@ -156,10 +161,12 @@ function RefRow({
   block,
   byParent,
   ctx,
+  contextRootBlockId,
 }: {
   block: Block;
   byParent: Map<string, Block[]>;
   ctx: OutlineCtx;
+  contextRootBlockId: string;
 }) {
   const live = useStore((s) => s.blocks[block.id]);
   const children = byParent.get(block.id) ?? [];
@@ -167,7 +174,11 @@ function RefRow({
   return (
     <div>
       <div className="flex items-start gap-1.5 py-[3px]">
-        <BulletLink blockId={block.id} ctx={ctx} />
+        <BulletLink
+          blockId={block.id}
+          ctx={ctx}
+          contextRootBlockId={contextRootBlockId}
+        />
         {live.kind === 'text' ? (
           <EditableBlockText
             block={live}
@@ -189,6 +200,7 @@ function RefRow({
               block={child}
               byParent={byParent}
               ctx={ctx}
+              contextRootBlockId={contextRootBlockId}
             />
           ))}
         </div>

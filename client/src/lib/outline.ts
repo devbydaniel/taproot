@@ -41,6 +41,29 @@ export function visibleOrder(
   return result;
 }
 
+/** Ancestors of a block, excluding the block itself. Guards malformed cycles. */
+export function ancestorIds(
+  blocks: Record<string, Block>,
+  blockId: string,
+): Set<string> {
+  const result = new Set<string>();
+  const seen = new Set([blockId]);
+  let parentId = blocks[blockId]?.parentId;
+  while (parentId && !seen.has(parentId)) {
+    seen.add(parentId);
+    result.add(parentId);
+    parentId = blocks[parentId]?.parentId ?? null;
+  }
+  return result;
+}
+
+export function oldestAncestorId(
+  blocks: Record<string, Block>,
+  blockId: string,
+): string {
+  return [...ancestorIds(blocks, blockId)].at(-1) ?? blockId;
+}
+
 export function siblingsOf(
   blocks: Record<string, Block>,
   block: Block,

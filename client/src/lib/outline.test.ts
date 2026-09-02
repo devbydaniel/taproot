@@ -1,6 +1,6 @@
 import type { Block } from '@taproot/shared';
 import { describe, expect, it } from 'vitest';
-import { visibleOrder } from './outline';
+import { ancestorIds, oldestAncestorId, visibleOrder } from './outline';
 
 function block(
   id: string,
@@ -25,6 +25,35 @@ function block(
 function byId(list: Block[]): Record<string, Block> {
   return Object.fromEntries(list.map((b) => [b.id, b]));
 }
+
+describe('ancestorIds', () => {
+  it('returns every parent from the immediate parent to the page root', () => {
+    const blocks = byId([
+      block('a', null, 'a0'),
+      block('a1', 'a', 'a0'),
+      block('a1a', 'a1', 'a0'),
+    ]);
+
+    expect([...ancestorIds(blocks, 'a1a')]).toEqual(['a1', 'a']);
+  });
+
+  it('stops when malformed data contains a cycle', () => {
+    const blocks = byId([block('a', 'b', 'a0'), block('b', 'a', 'a0')]);
+
+    expect([...ancestorIds(blocks, 'a')]).toEqual(['b']);
+  });
+
+  it('identifies the outermost ancestor as the context root', () => {
+    const blocks = byId([
+      block('a', null, 'a0'),
+      block('a1', 'a', 'a0'),
+      block('a1a', 'a1', 'a0'),
+    ]);
+
+    expect(oldestAncestorId(blocks, 'a1a')).toBe('a');
+    expect(oldestAncestorId(blocks, 'a')).toBe('a');
+  });
+});
 
 describe('visibleOrder with collapsed blocks', () => {
   // a (collapsed) > a1 > a1a, then b

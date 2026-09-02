@@ -36,6 +36,11 @@ export function PageTasks({
       .map((id) => storeBlocks[id])
       .filter((block): block is Block => block !== undefined),
   );
+  const contextRootByBlockId = new Map(
+    groups.flatMap((group) =>
+      group.rootIds.map((id) => [id, group.ancestors[id]?.[0]?.id ?? id]),
+    ),
+  );
 
   for (const root of roots) {
     if (parseTask(root.text)?.state === 'TODO') everOpen.current.add(root.id);
@@ -91,6 +96,7 @@ export function PageTasks({
             <BulletLink
               blockId={block.id}
               ctx={{ pageId: block.pageId, rootParentId: null, origin }}
+              contextRootBlockId={contextRootByBlockId.get(block.id)}
             />
             <div className="min-w-0 flex-1 leading-6">
               <BlockContent block={block} />

@@ -83,8 +83,9 @@ function AppWorkspace() {
                 />
               ) : (
                 <ZoomView
-                  key={`right:block:${target.id}`}
+                  key={`right:block:${target.id}:${target.revealBlockId ?? ''}`}
                   id={target.id}
+                  revealBlockId={target.revealBlockId}
                   surface="right"
                   onClose={close}
                 />
