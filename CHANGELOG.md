@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.21.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.20.0...taproot-v0.21.0) (2026-09-02)
+
+
+### Features
+
+* expand task children in daily agenda ([5f0dde5](https://github.com/devbydaniel/taproot/commit/5f0dde5044bf5062cffc99d45c4ce9663736c805))
+* show block context in side pane ([9f35886](https://github.com/devbydaniel/taproot/commit/9f35886d83a220455de49d00ef53fbcfd93e369f))
+
 ## [0.20.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.19.0...taproot-v0.20.0) (2026-08-30)
 
 
