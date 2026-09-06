@@ -2,6 +2,7 @@ import {
   acceptCompletion,
   autocompletion,
   completionStatus,
+  startCompletion,
   type CompletionContext,
   type CompletionResult,
 } from '@codemirror/autocomplete';
@@ -15,6 +16,7 @@ import {
   formatPageTag,
   shiftDailyTitle,
   suggestDailyTitles,
+  withTaskState,
 } from '@taproot/shared';
 import { useEffect, useRef } from 'react';
 import * as actions from '@/actions';
@@ -155,6 +157,32 @@ export function BlockEditor({
     const view = viewRef.current;
     if (view)
       actions.outdentBlock(blockId, view.state.selection.main.head, ctx);
+  };
+
+  const insertPageRef = () => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch(view.state.replaceSelection('[['), {
+      userEvent: 'input.type',
+      scrollIntoView: true,
+    });
+    view.focus();
+    startCompletion(view);
+  };
+
+  const addTodo = () => {
+    const view = viewRef.current;
+    if (!view) return;
+    const old = view.state.doc.toString();
+    const next = withTaskState(old, 'TODO');
+    if (next === old) return;
+    const { anchor, head } = view.state.selection.main;
+    const shift = (position: number) =>
+      Math.max(0, Math.min(next.length, position + next.length - old.length));
+    view.dispatch({
+      changes: { from: 0, to: old.length, insert: next },
+      selection: { anchor: shift(anchor), head: shift(head) },
+    });
   };
 
   useEffect(() => {
@@ -432,6 +460,8 @@ export function BlockEditor({
           canOutdent={canOutdent}
           onIndent={indent}
           onOutdent={outdent}
+          onAddTodo={addTodo}
+          onInsertPageRef={insertPageRef}
         />
       )}
     </>
