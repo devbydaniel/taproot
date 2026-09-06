@@ -9,7 +9,6 @@ import { PageShell, type PageSurface } from '@/components/layout/PageShell';
 import { DocBlock } from '@/components/doc/DocBlock';
 import { DrawingBlock } from '@/components/drawing/DrawingBlock';
 import { OutlineTree } from '@/components/OutlineTree';
-import { StaticText } from '@/components/StaticText';
 import { YouTubePreview } from '@/components/YouTubePreview';
 import { api } from '@/lib/api';
 import { installMergedBlocks } from '@/lib/offline/sync';
@@ -235,7 +234,7 @@ function ZoomTitle({
         }
         onClick={onFocus}
       >
-        <StaticText text={block.text} />
+        <BlockContent block={block} />
       </h1>
       {video && <YouTubePreview key={video.id} video={video} />}
     </div>
