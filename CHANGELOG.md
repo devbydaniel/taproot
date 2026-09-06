@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.1](https://github.com/devbydaniel/taproot/compare/taproot-v0.22.0...taproot-v0.22.1) (2026-09-06)
+
+
+### Bug Fixes
+
+* fall back to cached data when offline reads stall ([fbdd8b4](https://github.com/devbydaniel/taproot/commit/fbdd8b4ce8e37bd04f758f7f03ecbe16c4dde09a))
+
 ## [0.22.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.21.0...taproot-v0.22.0) (2026-09-06)
 
 
