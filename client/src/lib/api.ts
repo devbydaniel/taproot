@@ -2,7 +2,6 @@ import type { ApiType } from '@taproot/server';
 import type { Op, Page, PinFolder } from '@taproot/shared';
 import { hc } from 'hono/client';
 import { nanoid } from 'nanoid';
-import { cachePut, cacheGet } from '@/lib/offline/db';
 import { OfflineError, RejectedError } from '@/lib/offline/queue';
 import { cachedFetch } from '@/lib/offline/readCache';
 import { ensurePageOffline } from '@/lib/offline/sync';
@@ -61,15 +60,15 @@ export async function postOps(ops: Op[]): Promise<void> {
 }
 
 /** always hits the network — page-id reconciliation must not see cached data */
-export function listPagesUncached(): Promise<Page[]> {
-  return unwrap(client.pages.$get());
+export function listPagesUncached(signal?: AbortSignal): Promise<Page[]> {
+  return unwrap(client.pages.$get({}, { init: { signal } }));
 }
 
 export const api = {
   listPages: () => cachedFetch('pages', listPagesUncached),
   listPinFolders: () =>
-    cachedFetch<PinFolder[]>('pin-folders', () =>
-      unwrap(client['pin-folders'].$get()),
+    cachedFetch<PinFolder[]>('pin-folders', (signal) =>
+      unwrap(client['pin-folders'].$get({}, { init: { signal } })),
     ),
   /**
    * The server auto-creates the page (ensurePage); offline, fall back to the
@@ -77,31 +76,39 @@ export const api = {
    */
   pageByTitle: async (title: string): Promise<Page> => {
     try {
-      const page = await unwrap(
-        client.pages['by-title'][':title'].$get({
-          // hc substitutes params without escaping them; titles can contain anything
-          param: { title: encodeURIComponent(title) },
-        }),
+      return await cachedFetch(`title:${title}`, (signal) =>
+        unwrap(
+          client.pages['by-title'][':title'].$get(
+            // hc substitutes params without escaping them; titles can contain anything
+            { param: { title: encodeURIComponent(title) } },
+            { init: { signal } },
+          ),
+        ),
       );
-      void cachePut(`title:${title}`, page);
-      return page;
     } catch {
-      const hit = await cacheGet<Page>(`title:${title}`);
-      if (hit !== undefined) return hit;
       return ensurePageOffline(title);
     }
   },
   getPage: (id: string) =>
-    cachedFetch(`page:${id}`, () =>
+    cachedFetch(`page:${id}`, (signal) =>
       unwrap(
-        client.pages[':id'].$get({ param: { id: encodeURIComponent(id) } }),
+        client.pages[':id'].$get(
+          { param: { id: encodeURIComponent(id) } },
+          { init: { signal } },
+        ),
       ),
     ),
   getBlock: (id: string) =>
-    cachedFetch(`block:${id}`, () =>
+    cachedFetch(`block:${id}`, (signal) =>
       unwrap(
-        client.blocks[':id'].$get({ param: { id: encodeURIComponent(id) } }),
+        client.blocks[':id'].$get(
+          { param: { id: encodeURIComponent(id) } },
+          { init: { signal } },
+        ),
       ),
     ),
-  getTasks: () => cachedFetch('tasks', () => unwrap(client.tasks.$get())),
+  getTasks: () =>
+    cachedFetch('tasks', (signal) =>
+      unwrap(client.tasks.$get({}, { init: { signal } })),
+    ),
 };
