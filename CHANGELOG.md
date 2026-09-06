@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.22.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.21.0...taproot-v0.22.0) (2026-09-06)
+
+
+### Features
+
+* add inline mobile block editing shortcuts ([a72b88f](https://github.com/devbydaniel/taproot/commit/a72b88fd2b9f8dff18aed7b1bef1897c9493747b))
+
+
+### Bug Fixes
+
+* render task checkboxes in zoomed block titles ([5b170ce](https://github.com/devbydaniel/taproot/commit/5b170ce598240b7e765294d2030864d90f35ecb7))
+
 ## [0.21.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.20.0...taproot-v0.21.0) (2026-09-02)
 
 
