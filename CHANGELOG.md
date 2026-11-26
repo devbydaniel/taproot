@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.23.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.22.0...taproot-v0.23.0) (2026-11-26)
+
+
+### Features
+
+* add /calendar week/day view for scheduled tasks ([658f740](https://github.com/devbydaniel/taproot/commit/658f74055bcfe1e9a3bbcfcb667351518b27967f))
+* mirror the Google calendar into a read-only server cache ([a74a11f](https://github.com/devbydaniel/taproot/commit/a74a11f9cbd038c3fe6c7db0d8f55235d9529e83))
+* open the calendar on 08:00-20:00 and keep completed tasks in place ([d26f1e8](https://github.com/devbydaniel/taproot/commit/d26f1e8249b6e7827b2fe32717746fca8845cde3))
+* parse and render &lt;HH:MM&gt; task time tokens ([f929ef2](https://github.com/devbydaniel/taproot/commit/f929ef2c055c22be39e6cfb38e815e0086a8373e))
+* schedule tasks from a calendar sidebar and by tap on phones ([33b82ad](https://github.com/devbydaniel/taproot/commit/33b82ad143c25e21df92aeb25ddaf7e8addc2e12))
+* schedule tasks from a page's task section ([d06497b](https://github.com/devbydaniel/taproot/commit/d06497b97223db79815d0e5285867d0577922133))
+* show synced Google events in the calendar ([440dc26](https://github.com/devbydaniel/taproot/commit/440dc26ae1b608a362e08ac721ee704fd65dc95d))
+
+
+### Bug Fixes
+
+* **deps:** patch hono, katex, source-map-js and zod advisories ([99bc8d1](https://github.com/devbydaniel/taproot/commit/99bc8d1e28205e888fa5944e50e51a1ef2004263))
+* fall back to cached data when offline reads stall ([fbdd8b4](https://github.com/devbydaniel/taproot/commit/fbdd8b4ce8e37bd04f758f7f03ecbe16c4dde09a))
+* show the date pill below the task title in the calendar sidebar ([cce1aa5](https://github.com/devbydaniel/taproot/commit/cce1aa56175375558cb1e12c94377f1c1687f30f))
+* widen the calendar task pane and drop the desktop drag hint ([6009bc5](https://github.com/devbydaniel/taproot/commit/6009bc575383d98cbf488bd54432661ab66fcd05))
+
 ## [0.22.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.21.0...taproot-v0.22.0) (2026-09-06)
 
 
