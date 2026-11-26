@@ -250,6 +250,12 @@
 .taproot-calendar .fc .taproot-task.fc-timegrid-event {
   box-shadow: 0 0 0 1px var(--fc-page-bg-color);
 }
+/* while a sidebar task waits for its slot, clicks and taps go through the
+   existing blocks to the slot underneath (a phone's day view is all blocks) */
+.taproot-calendar.taproot-picking .fc .fc-event {
+  pointer-events: none;
+  opacity: 0.6;
+}
 /* the day view is a single (today) column; the today tint would only be noise */
 .taproot-calendar .fc .fc-timeGridDay-view .fc-day-today {
   background: transparent;

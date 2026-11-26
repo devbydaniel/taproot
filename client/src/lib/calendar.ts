@@ -1,10 +1,13 @@
 import type { EventInput } from '@fullcalendar/core';
 import {
+  collectAssignedReferenceTitles,
   cutToken,
   DEFAULT_TASK_MINUTES,
   findRecurrence,
+  findTimeToken,
   formatClock,
   formatDailyTitle,
+  matchesAssignedReferenceFilter,
   parseTask,
   rescheduleTask,
   segmentText,
@@ -116,4 +119,85 @@ export function slotSchedule(
     to = DAY_MINUTES;
   }
   return to > from ? { date, time: { start: from, end: to } } : null;
+}
+
+/**
+ * How long a task runs once it lands on a time slot: the length of its time
+ * token (also when it has no date yet), else the default duration.
+ */
+export function taskDuration(text: string): number {
+  const time = findTimeToken(text)?.value;
+  return time ? time.end - time.start : DEFAULT_TASK_MINUTES;
+}
+
+/**
+ * Where a sidebar task lands when dropped or tapped onto the calendar at
+ * `start` (local): the all-day row sets only the date; a time slot sets date
+ * and time, keeping the task's duration. Null when that would cross midnight,
+ * like a move on the calendar.
+ */
+export function placeTask(
+  text: string,
+  start: Date,
+  allDay: boolean,
+): SlotSchedule | null {
+  if (allDay) return slotSchedule(start, null, true);
+  // wall-clock arithmetic, so a DST switch doesn't shift the end
+  const end = new Date(
+    start.getFullYear(),
+    start.getMonth(),
+    start.getDate(),
+    start.getHours(),
+    start.getMinutes() + taskDuration(text),
+  );
+  return slotSchedule(start, end, false);
+}
+
+/**
+ * The sidebar has no host page, so every non-daily page reference of an open
+ * task is a filter option.
+ */
+const NO_HOST_PAGE = '';
+
+/** Reference filter options for the sidebar: All plus these. */
+export function sidebarReferenceOptions(blocks: Block[]): string[] {
+  return collectAssignedReferenceTitles(
+    blocks.map((block) => block.text),
+    NO_HOST_PAGE,
+  );
+}
+
+/**
+ * The sidebar list: open tasks matching the reference selection (empty = All),
+ * unscheduled first (oldest first), then scheduled by date — date-only before
+ * timed, timed by start.
+ */
+export function sidebarTasks(
+  blocks: Block[],
+  selectedTitles: ReadonlySet<string>,
+): Block[] {
+  const rank = (block: Block) => ({
+    date: taskDueDate(block.text),
+    start: taskTime(block.text)?.start ?? -1,
+  });
+  return blocks
+    .filter(
+      (block) =>
+        parseTask(block.text)?.state === 'TODO' &&
+        matchesAssignedReferenceFilter(
+          block.text,
+          NO_HOST_PAGE,
+          selectedTitles,
+        ),
+    )
+    .map((block) => ({ block, ...rank(block) }))
+    .sort((a, b) => {
+      if (a.date !== b.date) {
+        if (a.date === null) return -1;
+        if (b.date === null) return 1;
+        return a.date < b.date ? -1 : 1;
+      }
+      return a.start - b.start || a.block.createdAt - b.block.createdAt;
+    })
+    .map(({ block }) => block);
 }

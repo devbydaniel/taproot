@@ -40,10 +40,14 @@ export function AssignedReferenceFilter({
   options,
   selectedTitles,
   onSelectedTitlesChange,
+  portalContainer,
 }: {
   options: string[];
   selectedTitles: ReadonlySet<string>;
   onSelectedTitlesChange: (titles: Set<string>) => void;
+  /** render the popup here instead of <body>, e.g. inside a modal drawer,
+   * which blocks pointer events and focus outside itself */
+  portalContainer?: HTMLElement | null;
 }) {
   const filtering = selectedTitles.size > 0;
   const items = [ALL_OPTION, ...options];
@@ -85,7 +89,7 @@ export function AssignedReferenceFilter({
       >
         <Filter />
       </ComboboxTrigger>
-      <ComboboxContent align="end" className="w-64">
+      <ComboboxContent align="end" className="w-64" container={portalContainer}>
         <ComboboxInput
           showTrigger={false}
           placeholder="Search references…"

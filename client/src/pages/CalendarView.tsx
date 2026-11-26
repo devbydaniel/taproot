@@ -1,23 +1,47 @@
 import type {
+  CalendarApi,
   DatesSetArg,
   EventClickArg,
   EventContentArg,
   EventDropArg,
 } from '@fullcalendar/core';
 import interactionPlugin, {
+  type DateClickArg,
+  type DropArg,
   type EventResizeDoneArg,
 } from '@fullcalendar/interaction';
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
-import type { TaskListItem } from '@taproot/shared';
-import { ChevronLeft, ChevronRight, Repeat } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import type { Block, TaskListItem } from '@taproot/shared';
+import { useHotkey } from '@tanstack/react-hotkeys';
+import { ChevronLeft, ChevronRight, ListTodo, Repeat } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation } from 'wouter';
 import { scheduleTask, toggleTaskCheckbox } from '@/actions';
+import { useAssignedReferenceFilter } from '@/components/AssignedReferenceFilter';
+import {
+  CalendarTaskSidebar,
+  SIDEBAR_TASK_ATTR,
+} from '@/components/CalendarTaskSidebar';
 import { PageShell } from '@/components/layout/PageShell';
 import { Button } from '@/components/ui/button';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { useMediaQuery } from '@/hooks/use-media-query';
 import { api } from '@/lib/api';
-import { slotSchedule, taskEvent, type TaskEventProps } from '@/lib/calendar';
+import {
+  placeTask,
+  sidebarReferenceOptions,
+  sidebarTasks,
+  slotSchedule,
+  taskEvent,
+  taskLabel,
+  type TaskEventProps,
+} from '@/lib/calendar';
 import { installMergedBlocks } from '@/lib/offline/sync';
 import { useRightPane } from '@/lib/rightPane';
 import { shouldOpenInRightPane } from '@/lib/rightPaneGesture';
@@ -29,17 +53,26 @@ const VIEWS = [
   { type: 'timeGridDay', label: 'Day' },
 ] as const;
 
+const SHORT_TITLE_FORMAT = { month: 'short', day: 'numeric' } as const;
+
 const CLOCK_FORMAT = {
   hour: '2-digit',
   minute: '2-digit',
   hour12: false,
 } as const;
 
+/** phones get the day view and the task sidebar as a drawer */
+const NARROW_QUERY = '(max-width: 767px)';
+/** touch-first devices schedule by tap-then-tap; nothing drags on touch */
+const TOUCH_QUERY = '(pointer: coarse)';
+
 /**
  * Week/day calendar of open dated tasks. Timed tasks are blocks, date-only
  * tasks sit in the all-day row. Moving, resizing and dropping on the all-day
  * row rewrite the task's date link and time token — ordinary update_text ops,
- * so they work offline and reach other clients like any edit.
+ * so they work offline and reach other clients like any edit. A sidebar of
+ * open tasks (filtered by reference) schedules them: drag one onto a slot, or
+ * pick it and then click/tap a slot (the only way on touch and phones).
  */
 export function CalendarView() {
   const [items, setItems] = useState<TaskListItem[] | null>(null);
@@ -55,6 +88,12 @@ export function CalendarView() {
   const [view, setView] = useState<{ title: string; type: string } | null>(
     null,
   );
+  const narrow = useMediaQuery(NARROW_QUERY);
+  const touch = useMediaQuery(TOUCH_QUERY);
+  const tapOnly = narrow || touch;
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [pickedId, setPickedId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,15 +121,71 @@ export function CalendarView() {
 
   // membership comes from the fetch (plus local spawns); placement and
   // completion come from the live store copy, so edits show immediately
-  const events = useMemo(() => {
+  const taskBlocks = useMemo(() => {
     if (!items) return [];
     const ids = new Set([...items.map((item) => item.block.id), ...spawned]);
     return [...ids].flatMap((id) => {
       const block = blocks[id];
-      const event = block ? taskEvent(block) : null;
-      return event ? [event] : [];
+      return block ? [block] : [];
     });
   }, [items, spawned, blocks]);
+
+  const events = useMemo(
+    () =>
+      taskBlocks.flatMap((block) => {
+        const event = taskEvent(block);
+        return event ? [event] : [];
+      }),
+    [taskBlocks],
+  );
+
+  const openTasks = useMemo(
+    () => sidebarTasks(taskBlocks, new Set()),
+    [taskBlocks],
+  );
+  const options = useMemo(
+    () => sidebarReferenceOptions(openTasks),
+    [openTasks],
+  );
+  const { selectedTitles, setSelectedTitles } = useAssignedReferenceFilter(
+    options,
+    'calendar',
+  );
+  const sidebarList = useMemo(
+    () => sidebarTasks(openTasks, selectedTitles),
+    [openTasks, selectedTitles],
+  );
+
+  // a picked task that got completed or deleted meanwhile is no longer pickable
+  const picked: Block | undefined = openTasks.find(
+    (block) => block.id === pickedId,
+  );
+  useHotkey('Escape', () => setPickedId(null), { enabled: pickedId !== null });
+
+  const onPick = (id: string) => {
+    setPickedId((current) => (current === id ? null : id));
+    setDrawerOpen(false);
+  };
+
+  /** Land a sidebar task on the calendar; false when it can't go there. */
+  const place = (id: string, start: Date, allDay: boolean): boolean => {
+    const block = blocks[id];
+    const schedule = block ? placeTask(block.text, start, allDay) : null;
+    if (!schedule) return false;
+    scheduleTask(id, schedule.date, schedule.time);
+    return true;
+  };
+
+  const onDateClick = (info: DateClickArg) => {
+    if (picked && place(picked.id, info.date, info.allDay)) setPickedId(null);
+  };
+
+  const onDrop = (info: DropArg) => {
+    const id = info.draggedEl.getAttribute(SIDEBAR_TASK_ATTR);
+    if (id === null) return;
+    place(id, info.date, info.allDay);
+    if (id === pickedId) setPickedId(null);
+  };
 
   const reschedule = (info: EventDropArg | EventResizeDoneArg) => {
     const { event } = info;
@@ -117,9 +212,143 @@ export function CalendarView() {
 
   const calendar = () => calendarRef.current?.getApi();
 
+  const sidebar = (portalContainer?: HTMLElement | null) => (
+    <CalendarTaskSidebar
+      tasks={sidebarList}
+      options={options}
+      selectedTitles={selectedTitles}
+      onSelectedTitlesChange={setSelectedTitles}
+      draggable={!tapOnly}
+      pickedId={picked?.id ?? null}
+      onPick={onPick}
+      portalContainer={portalContainer}
+    />
+  );
+
   const actions = (
+    <CalendarActions
+      calendar={calendar}
+      viewType={view?.type}
+      compact={narrow}
+      tasksOpen={narrow ? drawerOpen : sidebarOpen}
+      onTasks={() =>
+        narrow ? setDrawerOpen(true) : setSidebarOpen((open) => !open)
+      }
+    />
+  );
+
+  return (
+    <PageShell
+      // a phone header only has room for the (short) date range
+      crumbs={[
+        ...(narrow ? [] : [{ label: 'Calendar' }]),
+        ...(view ? [{ label: view.title }] : []),
+      ]}
+      actions={actions}
+      fill
+    >
+      <div className="flex min-h-0 flex-1">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          {picked && (
+            <PickBanner
+              label={taskLabel(picked.text) || 'Untitled task'}
+              verb={tapOnly ? 'Tap' : 'Click'}
+              onCancel={() => setPickedId(null)}
+            />
+          )}
+          <div
+            ref={frameRef}
+            className={cn(
+              'taproot-calendar min-h-0 flex-1',
+              picked && 'taproot-picking',
+            )}
+          >
+            <FullCalendar
+              ref={calendarRef}
+              plugins={[timeGridPlugin, interactionPlugin]}
+              initialView={narrow ? 'timeGridDay' : 'timeGridWeek'}
+              headerToolbar={false}
+              height="100%"
+              firstDay={1}
+              nowIndicator
+              titleFormat={narrow ? SHORT_TITLE_FORMAT : undefined}
+              // no dragging on touch: tasks move by tap-then-tap from the sidebar
+              editable={!tapOnly}
+              droppable={!tapOnly}
+              eventResizableFromStart={false}
+              slotDuration="00:30"
+              snapDuration="00:15"
+              defaultTimedEventDuration="00:30"
+              scrollTime="07:00"
+              allDayText="All day"
+              slotLabelFormat={CLOCK_FORMAT}
+              eventTimeFormat={CLOCK_FORMAT}
+              dayHeaderFormat={{ weekday: 'short', day: 'numeric' }}
+              events={events}
+              eventClassNames="taproot-task"
+              eventContent={(arg) => <TaskEventContent arg={arg} />}
+              // a task's time never spans midnight
+              eventAllow={(span) =>
+                slotSchedule(span.start, span.end, span.allDay) !== null
+              }
+              eventDrop={reschedule}
+              eventResize={reschedule}
+              eventClick={onEventClick}
+              dateClick={onDateClick}
+              drop={onDrop}
+              datesSet={(arg: DatesSetArg) =>
+                setView({ title: arg.view.title, type: arg.view.type })
+              }
+            />
+          </div>
+        </div>
+        {!narrow && sidebarOpen && (
+          <aside className="ml-3 w-64 shrink-0 border-l pt-1 pl-1">
+            {sidebar()}
+          </aside>
+        )}
+      </div>
+      {narrow && (
+        <TaskDrawer open={drawerOpen} onOpenChange={setDrawerOpen}>
+          {sidebar}
+        </TaskDrawer>
+      )}
+    </PageShell>
+  );
+}
+
+/** Header actions: task sidebar toggle, today/back/forward, view switch. */
+function CalendarActions({
+  calendar,
+  viewType,
+  compact,
+  tasksOpen,
+  onTasks,
+}: {
+  calendar: () => CalendarApi | undefined;
+  viewType: string | undefined;
+  compact: boolean;
+  tasksOpen: boolean;
+  onTasks: () => void;
+}) {
+  return (
     <>
-      <Button variant="ghost" size="sm" onClick={() => calendar()?.today()}>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-7"
+        title="Tasks"
+        aria-label="Tasks"
+        aria-pressed={tasksOpen}
+        onClick={onTasks}
+      >
+        <ListTodo />
+      </Button>
+      <Button
+        variant="ghost"
+        size={compact ? 'xs' : 'sm'}
+        onClick={() => calendar()?.today()}
+      >
         Today
       </Button>
       <Button
@@ -142,68 +371,123 @@ export function CalendarView() {
       >
         <ChevronRight />
       </Button>
-      <div className="ml-1 flex rounded-md bg-muted p-0.5">
-        {VIEWS.map((option) => (
-          <Button
-            key={option.type}
-            variant="ghost"
-            size="xs"
-            aria-pressed={view?.type === option.type}
-            className={cn(
-              'text-muted-foreground hover:bg-transparent',
-              view?.type === option.type &&
-                'bg-background text-foreground shadow-xs hover:bg-background',
-            )}
-            onClick={() => calendar()?.changeView(option.type)}
-          >
-            {option.label}
-          </Button>
-        ))}
-      </div>
+      <ViewSwitch
+        current={viewType}
+        compact={compact}
+        onChange={(type) => calendar()?.changeView(type)}
+      />
     </>
   );
+}
 
+/**
+ * The task sidebar on phones: a modal drawer. Its content is rendered with
+ * the drawer element, so popups inside can portal into it — the modal blocks
+ * pointer events and focus everywhere else.
+ */
+function TaskDrawer({
+  open,
+  onOpenChange,
+  children,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  children: (container: HTMLElement | null) => ReactNode;
+}) {
+  const [drawer, setDrawer] = useState<HTMLElement | null>(null);
   return (
-    <PageShell
-      crumbs={[{ label: 'Calendar' }, ...(view ? [{ label: view.title }] : [])]}
-      actions={actions}
-      fill
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        ref={setDrawer}
+        side="right"
+        showCloseButton={false}
+        // Escape in the open filter popup closes just the popup
+        onEscapeKeyDown={(event) => {
+          if (drawer?.querySelector('[data-slot=combobox-content]'))
+            event.preventDefault();
+        }}
+        className="gap-0 pt-3"
+      >
+        <SheetTitle className="sr-only">Tasks</SheetTitle>
+        <SheetDescription className="sr-only">
+          Pick a task, then tap a slot to schedule it.
+        </SheetDescription>
+        {children(drawer)}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+/**
+ * Week/day toggle; `compact` (phones, where the header is tight) is a single
+ * button naming the other view.
+ */
+function ViewSwitch({
+  current,
+  compact,
+  onChange,
+}: {
+  current: string | undefined;
+  compact: boolean;
+  onChange: (type: string) => void;
+}) {
+  if (compact) {
+    const other = VIEWS.find((option) => option.type !== current) ?? VIEWS[0];
+    return (
+      <Button
+        variant="ghost"
+        size="xs"
+        className="text-muted-foreground"
+        title={`${other.label} view`}
+        onClick={() => onChange(other.type)}
+      >
+        {other.label}
+      </Button>
+    );
+  }
+  return (
+    <div className="ml-1 flex rounded-md bg-muted p-0.5">
+      {VIEWS.map((option) => (
+        <Button
+          key={option.type}
+          variant="ghost"
+          size="xs"
+          aria-pressed={current === option.type}
+          className={cn(
+            'text-muted-foreground hover:bg-transparent',
+            current === option.type &&
+              'bg-background text-foreground shadow-xs hover:bg-background',
+          )}
+          onClick={() => onChange(option.type)}
+        >
+          {option.label}
+        </Button>
+      ))}
+    </div>
+  );
+}
+
+function PickBanner({
+  label,
+  verb,
+  onCancel,
+}: {
+  label: string;
+  verb: string;
+  onCancel: () => void;
+}) {
+  return (
+    <div
+      role="status"
+      className="mx-1 mb-2 flex items-center gap-2 rounded-md bg-accent px-3 py-1 text-sm text-accent-foreground"
     >
-      <div ref={frameRef} className="taproot-calendar min-h-0 flex-1">
-        <FullCalendar
-          ref={calendarRef}
-          plugins={[timeGridPlugin, interactionPlugin]}
-          initialView="timeGridWeek"
-          headerToolbar={false}
-          height="100%"
-          firstDay={1}
-          nowIndicator
-          editable
-          eventResizableFromStart={false}
-          slotDuration="00:30"
-          snapDuration="00:15"
-          defaultTimedEventDuration="00:30"
-          scrollTime="07:00"
-          allDayText="All day"
-          slotLabelFormat={CLOCK_FORMAT}
-          eventTimeFormat={CLOCK_FORMAT}
-          dayHeaderFormat={{ weekday: 'short', day: 'numeric' }}
-          events={events}
-          eventClassNames="taproot-task"
-          eventContent={(arg) => <TaskEventContent arg={arg} />}
-          // a task's time never spans midnight
-          eventAllow={(span) =>
-            slotSchedule(span.start, span.end, span.allDay) !== null
-          }
-          eventDrop={reschedule}
-          eventResize={reschedule}
-          eventClick={onEventClick}
-          datesSet={(arg: DatesSetArg) =>
-            setView({ title: arg.view.title, type: arg.view.type })
-          }
-        />
-      </div>
-    </PageShell>
+      <span className="min-w-0 flex-1 truncate">
+        {verb} a slot to schedule <span className="font-medium">{label}</span>
+      </span>
+      <Button variant="ghost" size="xs" onClick={onCancel}>
+        Cancel
+      </Button>
+    </div>
   );
 }
 

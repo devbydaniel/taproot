@@ -1,10 +1,18 @@
 import type { Block } from '@taproot/shared';
 import { describe, expect, it } from 'vitest';
-import { slotSchedule, taskEvent, taskLabel } from './calendar';
+import {
+  placeTask,
+  sidebarReferenceOptions,
+  sidebarTasks,
+  slotSchedule,
+  taskDuration,
+  taskEvent,
+  taskLabel,
+} from './calendar';
 
-function block(text: string): Block {
+function block(text: string, id = 'b1', createdAt = 0): Block {
   return {
-    id: 'b1',
+    id,
     pageId: 'p1',
     parentId: null,
     orderKey: 'a0',
@@ -12,7 +20,7 @@ function block(text: string): Block {
     kind: 'text',
     data: null,
     collapsed: false,
-    createdAt: 0,
+    createdAt,
     updatedAt: 0,
   };
 }
@@ -115,5 +123,91 @@ describe('slotSchedule', () => {
       date: '2026-08-05',
       time: null,
     });
+  });
+});
+
+describe('taskDuration', () => {
+  it("is the time token's length, dated or not, else the default", () => {
+    expect(taskDuration('TODO x [[2026-08-01]] <09:00-10:30>')).toBe(90);
+    expect(taskDuration('TODO x <09:00-09:45>')).toBe(45);
+    expect(taskDuration('TODO x <25:00>')).toBe(30);
+    expect(taskDuration('TODO x')).toBe(30);
+  });
+});
+
+describe('placeTask', () => {
+  const at = (day: number, hours: number, minutes = 0) =>
+    new Date(2026, 7, day, hours, minutes);
+
+  it('gives an undated task the date and a default-length time', () => {
+    expect(placeTask('TODO x', at(6, 9), false)).toEqual({
+      date: '2026-08-06',
+      time: { start: 540, end: 570 },
+    });
+  });
+
+  it("moves a dated task, keeping its time's duration", () => {
+    expect(
+      placeTask('TODO x [[2026-08-01]] <14:00-15:15>', at(6, 9), false),
+    ).toEqual({ date: '2026-08-06', time: { start: 540, end: 615 } });
+  });
+
+  it('sets only the date in the all-day row', () => {
+    expect(placeTask('TODO x <14:00>', at(6, 0), true)).toEqual({
+      date: '2026-08-06',
+      time: null,
+    });
+  });
+
+  it('refuses a slot that would run past midnight', () => {
+    expect(placeTask('TODO x <09:00-10:00>', at(6, 23, 30), false)).toBeNull();
+    expect(placeTask('TODO x', at(6, 23, 30), false)?.time).toEqual({
+      start: 1410,
+      end: 1440,
+    });
+  });
+});
+
+describe('sidebar tasks', () => {
+  const tasks = [
+    block('TODO late [[2026-08-03]] <10:00> [[Anna]]', 'late', 1),
+    block('TODO early [[2026-08-03]] <08:00>', 'early', 2),
+    block('TODO allday [[2026-08-03]] [[Bob]]', 'allday', 3),
+    block('TODO first [[2026-08-01]]', 'first', 4),
+    block('TODO new inbox [[Anna]] #Bob', 'new', 6),
+    block('TODO old inbox', 'old', 5),
+    block('DONE done [[Anna]]', 'done', 0),
+    block('note [[Anna]]', 'note', 0),
+  ];
+  const ids = (blocks: Block[]) => blocks.map((b) => b.id);
+
+  it('lists every open task for All: unscheduled first, then by date and time', () => {
+    expect(ids(sidebarTasks(tasks, new Set()))).toEqual([
+      'old',
+      'new',
+      'first',
+      'allday',
+      'early',
+      'late',
+    ]);
+  });
+
+  it('keeps exactly the open tasks linking to a selected reference', () => {
+    expect(ids(sidebarTasks(tasks, new Set(['Anna'])))).toEqual([
+      'new',
+      'late',
+    ]);
+    expect(ids(sidebarTasks(tasks, new Set(['Anna', 'Bob'])))).toEqual([
+      'new',
+      'allday',
+      'late',
+    ]);
+  });
+
+  it('offers every non-daily reference of the given tasks', () => {
+    expect(sidebarReferenceOptions(sidebarTasks(tasks, new Set()))).toEqual([
+      'Anna',
+      'Bob',
+    ]);
   });
 });
