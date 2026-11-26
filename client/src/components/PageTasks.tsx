@@ -13,6 +13,7 @@ import {
 } from './AssignedReferenceFilter';
 import { BlockContent } from './BlockContent';
 import { BulletLink } from './Bullet';
+import { TaskDatePill } from './TaskDatePill';
 
 /**
  * Open tasks that link to this page, shown below the page content. Membership
@@ -101,6 +102,10 @@ export function PageTasks({
             <div className="min-w-0 flex-1 leading-6">
               <BlockContent block={block} />
             </div>
+            {/* schedule/reschedule, as on the Tasks page; open tasks only */}
+            {parseTask(block.text)?.state === 'TODO' && (
+              <TaskDatePill block={block} />
+            )}
           </div>
         ))
       )}
