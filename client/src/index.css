@@ -243,6 +243,10 @@
   color: var(--primary);
   font-weight: 600;
 }
+/* row height set by useDayWindow so 08:00–20:00 fills the grid */
+.taproot-calendar .fc .fc-timegrid-slot {
+  height: var(--taproot-slot-height, 1.5em);
+}
 /* task blocks and Google events: a tinted card with a coloured leading edge */
 .taproot-calendar .fc :is(.taproot-task, .taproot-google) {
   border-width: 0 0 0 3px;
@@ -270,6 +274,11 @@
     var(--background)
   );
   border-left-style: dashed;
+}
+/* completed tasks stay in their slot, muted (their text is struck through) */
+.taproot-calendar .fc .taproot-task-done {
+  --fc-event-bg-color: var(--muted);
+  --fc-event-border-color: var(--muted-foreground);
 }
 /* while a sidebar task waits for its slot, clicks and taps go through the
    existing blocks to the slot underneath (a phone's day view is all blocks) */

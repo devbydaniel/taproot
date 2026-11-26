@@ -5,6 +5,7 @@ import { createApi } from './app.js';
 import { createStore, type Store } from './db.js';
 import { applyOps, ensurePage, reindexTasks } from './ops.js';
 import {
+  getDoneTasks,
   getJournal,
   getPagePayload,
   getTaskGroups,
@@ -716,6 +717,99 @@ describe('getTaskList', () => {
       { type: 'update_text', id: 'outer', text: 'plan trip' },
     ]);
     expect(getTaskList(store)).toMatchObject({ tasks: [], blocks: [] });
+  });
+});
+
+describe('getDoneTasks', () => {
+  const block = (id: string, pageId: string, text: string): Op => ({
+    type: 'create_block',
+    id,
+    pageId,
+    parentId: null,
+    orderKey: id,
+    text,
+  });
+  const week = { start: '2026-11-23', end: '2026-11-30' };
+  const doneIds = (range = week) =>
+    getDoneTasks(store, range)
+      .tasks.map((item) => item.block.id)
+      .sort();
+
+  it('returns completed tasks dated in the range, end exclusive', () => {
+    const home = setupPage('Home');
+    applyOps(store, [
+      block('mon', home.id, 'DONE plan [[2026-11-23]] <09:00-10:00>'),
+      block('sun', home.id, 'DONE rest [[2026-11-29]]'),
+      block('next', home.id, 'DONE later [[2026-11-30]]'),
+      block('before', home.id, 'DONE earlier [[2026-11-22]]'),
+      block('open', home.id, 'TODO still open [[2026-11-24]]'),
+      block('undated', home.id, 'DONE whenever'),
+      block('note', home.id, 'met [[2026-11-24]]'),
+    ]);
+
+    expect(doneIds()).toEqual(['mon', 'sun']);
+    const item = getDoneTasks(store, week).tasks.find(
+      (task) => task.block.id === 'mon',
+    );
+    expect(item).toMatchObject({
+      dueDate: '2026-11-23',
+      time: { start: 540, end: 600 },
+      page: { title: 'Home' },
+    });
+  });
+
+  it('goes by the due date (first daily link), not any linked date', () => {
+    const home = setupPage('Home');
+    applyOps(store, [
+      block('t1', home.id, 'DONE due [[2026-11-10]] see [[2026-11-24]]'),
+      block('t2', home.id, 'DONE due [[2026-11-24]] from [[2026-11-10]]'),
+    ]);
+
+    expect(doneIds()).toEqual(['t2']);
+  });
+
+  it('follows completion and reopening', () => {
+    const home = setupPage('Home');
+    applyOps(store, [block('t1', home.id, 'TODO call [[2026-11-24]] <14:00>')]);
+    expect(doneIds()).toEqual([]);
+
+    applyOps(store, [
+      {
+        type: 'update_text',
+        id: 't1',
+        text: 'DONE call [[2026-11-24]] <14:00>',
+      },
+    ]);
+    expect(doneIds()).toEqual(['t1']);
+
+    applyOps(store, [
+      {
+        type: 'update_text',
+        id: 't1',
+        text: 'TODO call [[2026-11-24]] <14:00>',
+      },
+    ]);
+    expect(doneIds()).toEqual([]);
+  });
+
+  it('GET /tasks/done validates the range', async () => {
+    const home = setupPage('Home');
+    applyOps(store, [block('t1', home.id, 'DONE call [[2026-11-24]]')]);
+    const api = createApi(store, vi.fn());
+
+    const res = await api.request(
+      '/tasks/done?start=2026-11-23&end=2026-11-30',
+    );
+    expect(res.status).toBe(200);
+    expect(
+      ((await res.json()) as { tasks: { block: { id: string } }[] }).tasks.map(
+        (item) => item.block.id,
+      ),
+    ).toEqual(['t1']);
+    expect((await api.request('/tasks/done')).status).toBe(400);
+    expect(
+      (await api.request('/tasks/done?start=2026-11-30&end=2026-11-23')).status,
+    ).toBe(400);
   });
 });
 

@@ -8,6 +8,7 @@ import { applyOps, ensurePage, saveDocMarkdown } from './ops.js';
 import {
   getCalendarEvents,
   getDocMarkdown,
+  getDoneTasks,
   getPagePayload,
   getTaskList,
   getZoomPayload,
@@ -18,13 +19,20 @@ import {
 // matches the update_data op's z.string().max(2_000_000) bound
 const MAX_DOC_BYTES = 2_000_000;
 
-// Berlin dates, end exclusive; a year bounds the response size
-const calendarRangeSchema = z
+// daily titles (Berlin dates for Google events), end exclusive; a year
+// bounds the response size
+const dateRangeSchema = z
   .object({ start: z.iso.date(), end: z.iso.date() })
   .refine(({ start, end }) => {
     const days = (Date.parse(end) - Date.parse(start)) / 86_400_000;
     return days > 0 && days <= 366;
   });
+
+const dateRangeQuery = zValidator('query', dateRangeSchema, (result, c) => {
+  if (!result.success) {
+    return c.json({ error: 'expected ?start=YYYY-MM-DD&end=YYYY-MM-DD' }, 400);
+  }
+});
 
 // routes must stay chained on one expression: hc<ApiType> infers the client
 // from the accumulated type, and separate `api.get(...)` statements lose it.
@@ -36,21 +44,14 @@ export function createApi(
 ) {
   return new Hono()
     .get('/pages', (c) => c.json(listPages(store), 200))
-    .get(
-      '/calendar/events',
-      zValidator('query', calendarRangeSchema, (result, c) => {
-        if (!result.success) {
-          return c.json(
-            { error: 'expected ?start=YYYY-MM-DD&end=YYYY-MM-DD' },
-            400,
-          );
-        }
-      }),
-      (c) =>
-        c.json(getCalendarEvents(store, calendarId, c.req.valid('query')), 200),
+    .get('/calendar/events', dateRangeQuery, (c) =>
+      c.json(getCalendarEvents(store, calendarId, c.req.valid('query')), 200),
     )
     .get('/pin-folders', (c) => c.json(listPinFolders(store), 200))
     .get('/tasks', (c) => c.json(getTaskList(store), 200))
+    .get('/tasks/done', dateRangeQuery, (c) =>
+      c.json(getDoneTasks(store, c.req.valid('query')), 200),
+    )
     .get('/pages/by-title/:title', (c) => {
       const title = c.req.param('title').trim();
       if (!title) return c.json({ error: 'empty title' }, 400);

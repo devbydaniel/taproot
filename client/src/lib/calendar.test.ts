@@ -1,6 +1,7 @@
 import type { Block, CalendarEvent } from '@taproot/shared';
 import { describe, expect, it } from 'vitest';
 import {
+  dayWindowRowHeight,
   formatSyncTime,
   googleEvent,
   placeTask,
@@ -43,13 +44,24 @@ describe('taskLabel', () => {
   });
 });
 
+describe('dayWindowRowHeight', () => {
+  it('fits the 08:00–20:00 half-hour rows into the visible height', () => {
+    expect(dayWindowRowHeight(738)).toBe(30.75);
+    expect(dayWindowRowHeight(480)).toBe(20);
+  });
+
+  it('keeps rows readable on very short screens', () => {
+    expect(dayWindowRowHeight(120)).toBe(12);
+  });
+});
+
 describe('taskEvent', () => {
   it('places a timed task as a block on its day', () => {
     expect(taskEvent(block('TODO x [[2026-08-01]] <14:00-15:00>'))).toEqual({
       id: 'b1',
       title: 'x',
       classNames: ['taproot-task'],
-      extendedProps: { kind: 'task', recurring: false },
+      extendedProps: { kind: 'task', recurring: false, done: false },
       start: '2026-08-01T14:00',
       end: '2026-08-01T15:00',
       allDay: false,
@@ -74,8 +86,29 @@ describe('taskEvent', () => {
     });
   });
 
-  it('skips done, undated and non-task blocks', () => {
-    expect(taskEvent(block('DONE x [[2026-08-01]] <14:00>'))).toBeNull();
+  it('keeps a done task in its slot, marked done and read-only', () => {
+    expect(taskEvent(block('DONE x [[2026-08-01]] <14:00>'))).toEqual({
+      id: 'b1',
+      title: 'x',
+      classNames: ['taproot-task', 'taproot-task-done'],
+      extendedProps: { kind: 'task', recurring: false, done: true },
+      editable: false,
+      start: '2026-08-01T14:00',
+      end: '2026-08-01T14:30',
+      allDay: false,
+    });
+    expect(
+      taskEvent(block('DONE x [[2026-08-01]] <every week>')),
+    ).toMatchObject({
+      start: '2026-08-01',
+      allDay: true,
+      editable: false,
+      extendedProps: { recurring: true, done: true },
+    });
+  });
+
+  it('skips undated and non-task blocks', () => {
+    expect(taskEvent(block('DONE x <14:00>'))).toBeNull();
     expect(taskEvent(block('TODO x <14:00>'))).toBeNull();
     expect(taskEvent(block('x [[2026-08-01]] <14:00>'))).toBeNull();
   });

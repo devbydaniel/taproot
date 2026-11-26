@@ -12,14 +12,14 @@ import interactionPlugin, {
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import {
+  formatClock,
   formatDailyTitle,
   type Block,
   type CalendarSyncStatus,
-  type TaskListItem,
 } from '@taproot/shared';
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { ChevronLeft, ChevronRight, ListTodo } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation } from 'wouter';
 import { scheduleTask, toggleTaskCheckbox } from '@/actions';
 import { useAssignedReferenceFilter } from '@/components/AssignedReferenceFilter';
@@ -37,19 +37,21 @@ import {
   SheetDescription,
   SheetTitle,
 } from '@/components/ui/sheet';
+import { useCalendarTasks } from '@/hooks/use-calendar-tasks';
+import { useDayWindow } from '@/hooks/use-day-window';
 import { useGoogleEvents, type VisibleRange } from '@/hooks/use-google-events';
 import { useMediaQuery } from '@/hooks/use-media-query';
-import { api } from '@/lib/api';
 import {
+  DAY_WINDOW,
   placeTask,
   sidebarReferenceOptions,
   sidebarTasks,
+  SLOT_MINUTES,
   slotSchedule,
   taskEvent,
   taskLabel,
   type CalendarEventProps,
 } from '@/lib/calendar';
-import { installMergedBlocks } from '@/lib/offline/sync';
 import { useRightPane } from '@/lib/rightPane';
 import { shouldOpenInRightPane } from '@/lib/rightPaneGesture';
 import { cn } from '@/lib/utils';
@@ -74,21 +76,18 @@ const NARROW_QUERY = '(max-width: 767px)';
 const TOUCH_QUERY = '(pointer: coarse)';
 
 /**
- * Week/day calendar of open dated tasks. Timed tasks are blocks, date-only
- * tasks sit in the all-day row. Moving, resizing and dropping on the all-day
- * row rewrite the task's date link and time token — ordinary update_text ops,
- * so they work offline and reach other clients like any edit. A sidebar of
- * open tasks (filtered by reference) schedules them: drag one onto a slot, or
- * pick it and then click/tap a slot (the only way on touch and phones).
+ * Week/day calendar of dated tasks, opening on the 08:00–20:00 window. Timed
+ * tasks are blocks, date-only tasks sit in the all-day row; completed ones
+ * stay in place, struck through and fixed, until their checkbox reopens them.
+ * Moving, resizing and dropping on the all-day row rewrite an open task's
+ * date link and time token — ordinary update_text ops, so they work offline
+ * and reach other clients like any edit. A sidebar of open tasks (filtered by
+ * reference) schedules them: drag one onto a slot, or pick it and then
+ * click/tap a slot (the only way on touch and phones).
  * Synced Google events sit alongside, read-only; clicking one opens its Meet
  * call or the event in Google Calendar.
  */
 export function CalendarView() {
-  const [items, setItems] = useState<TaskListItem[] | null>(null);
-  // recurring completions spawn their next instance locally; it only joins
-  // the fetched membership on the next refetch, so track it meanwhile
-  const [spawned, setSpawned] = useState<string[]>([]);
-  const remoteEpoch = useStore((s) => s.remoteEpoch);
   const blocks = useStore((s) => s.blocks);
   const [, navigate] = useLocation();
   const { open } = useRightPane();
@@ -99,47 +98,14 @@ export function CalendarView() {
   );
   const [range, setRange] = useState<VisibleRange | null>(null);
   const google = useGoogleEvents(range);
+  const { taskBlocks, addSpawned } = useCalendarTasks(range);
+  const watchTimeGrid = useDayWindow(frameRef, calendarRef);
   const narrow = useMediaQuery(NARROW_QUERY);
   const touch = useMediaQuery(TOUCH_QUERY);
   const tapOnly = narrow || touch;
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [pickedId, setPickedId] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    void api.getTasks().then((data) => {
-      if (cancelled) return;
-      installMergedBlocks(data.blocks ?? data.tasks.map((item) => item.block));
-      setItems(data.tasks);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [remoteEpoch]);
-
-  // FullCalendar only tracks window resizes; the frame also changes width
-  // when the app sidebar or the side pane opens
-  useEffect(() => {
-    const frame = frameRef.current;
-    if (!frame) return;
-    const observer = new ResizeObserver(() =>
-      calendarRef.current?.getApi().updateSize(),
-    );
-    observer.observe(frame);
-    return () => observer.disconnect();
-  }, []);
-
-  // membership comes from the fetch (plus local spawns); placement and
-  // completion come from the live store copy, so edits show immediately
-  const taskBlocks = useMemo(() => {
-    if (!items) return [];
-    const ids = new Set([...items.map((item) => item.block.id), ...spawned]);
-    return [...ids].flatMap((id) => {
-      const block = blocks[id];
-      return block ? [block] : [];
-    });
-  }, [items, spawned, blocks]);
 
   const events = useMemo(
     () => [
@@ -220,7 +186,7 @@ export function CalendarView() {
     const target = info.jsEvent.target as Element;
     if (target.closest('[data-task-checkbox]')) {
       const nextId = toggleTaskCheckbox(id);
-      if (nextId !== null) setSpawned((current) => [...current, nextId]);
+      if (nextId !== null) addSpawned(nextId);
     } else if (shouldOpenInRightPane(info.jsEvent)) {
       open({ kind: 'block', id });
     } else {
@@ -295,10 +261,12 @@ export function CalendarView() {
               editable={!tapOnly}
               droppable={!tapOnly}
               eventResizableFromStart={false}
-              slotDuration="00:30"
+              slotDuration={formatClock(SLOT_MINUTES)}
               snapDuration="00:15"
               defaultTimedEventDuration="00:30"
-              scrollTime="07:00"
+              // the day window fills the grid (useDayWindow) and opens in view
+              scrollTime={formatClock(DAY_WINDOW.start)}
+              viewDidMount={watchTimeGrid}
               allDayText="All day"
               slotLabelFormat={CLOCK_FORMAT}
               eventTimeFormat={CLOCK_FORMAT}

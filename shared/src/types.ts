@@ -136,6 +136,11 @@ export interface TasksPayload {
   blocks?: Block[];
 }
 
+/** Completed tasks dated in a range (their first daily link), for the calendar. */
+export interface DoneTasksPayload {
+  tasks: TaskListItem[];
+}
+
 /** One day of the journal: a daily page plus its full flat block list. */
 export interface JournalDay {
   page: Page;

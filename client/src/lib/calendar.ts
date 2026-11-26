@@ -22,6 +22,24 @@ import {
 
 const DAY_MINUTES = 24 * 60;
 
+/** the calendar's time grid: one row per half hour */
+export const SLOT_MINUTES = 30;
+
+/**
+ * The working day the calendar opens on: these hours fill the visible
+ * height and are in view on load; the rest of the day is a scroll away.
+ */
+export const DAY_WINDOW = { start: 8 * 60, end: 20 * 60 } as const;
+
+/** below this a row can't show a line of text; short screens scroll instead */
+const MIN_ROW_PX = 12;
+
+/** Row height that makes the day window exactly fill `viewHeight` pixels. */
+export function dayWindowRowHeight(viewHeight: number): number {
+  const rows = (DAY_WINDOW.end - DAY_WINDOW.start) / SLOT_MINUTES;
+  return Math.max(viewHeight / rows, MIN_ROW_PX);
+}
+
 /**
  * What a calendar block shows for a task: its text without the task marker,
  * date link, time and recurrence tokens (the calendar already says when and
@@ -47,6 +65,8 @@ export function taskLabel(text: string): string {
 interface TaskEventProps {
   kind: 'task';
   recurring: boolean;
+  /** completed: stays in its slot, struck through, fixed in place */
+  done: boolean;
 }
 
 interface GoogleEventProps {
@@ -70,25 +90,29 @@ function localDateTime(date: string, minutes: number): string {
 }
 
 /**
- * The calendar event for a block: open tasks with a date only (completed
- * tasks leave the calendar). Timed tasks become blocks; date-only tasks sit
- * in the all-day row, movable between days but not stretchable across them.
- * The event id is the block id.
+ * The calendar event for a dated task block. Timed tasks become blocks;
+ * date-only tasks sit in the all-day row, movable between days but not
+ * stretchable across them. Completed tasks keep their slot, marked done and
+ * read-only (only their checkbox reopens them). The event id is the block id.
  */
 export function taskEvent(block: Block): EventInput | null {
-  if (parseTask(block.text)?.state !== 'TODO') return null;
+  const state = parseTask(block.text)?.state;
+  if (state === undefined) return null;
   const date = taskDueDate(block.text);
   if (date === null) return null;
   const time = taskTime(block.text);
+  const done = state === 'DONE';
   const extendedProps: TaskEventProps = {
     kind: 'task',
     recurring: findRecurrence(block.text) !== null,
+    done,
   };
   const base = {
     id: block.id,
     title: taskLabel(block.text) || 'Untitled task',
-    classNames: ['taproot-task'],
+    classNames: ['taproot-task', ...(done ? ['taproot-task-done'] : [])],
     extendedProps,
+    ...(done ? { editable: false } : {}),
   };
   if (time === null)
     return { ...base, start: date, allDay: true, durationEditable: false };

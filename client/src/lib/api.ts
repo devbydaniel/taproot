@@ -111,6 +111,13 @@ export const api = {
     cachedFetch('tasks', (signal) =>
       unwrap(client.tasks.$get({}, { init: { signal } })),
     ),
+  /** completed tasks dated in the daily titles [start, end) */
+  getDoneTasks: (start: string, end: string) =>
+    cachedFetch(`tasks-done:${start}:${end}`, (signal) =>
+      unwrap(
+        client.tasks.done.$get({ query: { start, end } }, { init: { signal } }),
+      ),
+    ),
   /** synced Google events overlapping the dates [start, end), plus sync status */
   getCalendarEvents: (start: string, end: string) =>
     cachedFetch(`calendar:${start}:${end}`, (signal) =>

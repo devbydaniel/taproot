@@ -3,6 +3,7 @@ import {
   type CalendarEvent,
   type CalendarEventsPayload,
   type CalendarSyncStatus,
+  type DoneTasksPayload,
   taskDueDate,
   taskHasPageLink,
   taskTime,
@@ -12,6 +13,7 @@ import {
   type Page,
   type PagePayload,
   type PinFolder,
+  type TaskListItem,
   type TasksPayload,
   type ZoomPayload,
 } from '@taproot/shared';
@@ -277,22 +279,70 @@ export function getTaskList(store: Store): TasksPayload {
       taskBlocks.push(block);
     }
   }
-  return {
-    tasks: open.flatMap((block) => {
-      const page = pageById.get(block.pageId);
-      if (!page) return [];
-      return [
-        {
-          block,
-          page,
-          dueDate: taskDueDate(block.text),
-          hasPageLink: taskHasPageLink(block.text),
-          time: taskTime(block.text),
-        },
-      ];
-    }),
-    blocks: taskBlocks,
-  };
+  return { tasks: taskListItems(open, pageById), blocks: taskBlocks };
+}
+
+/** Task blocks as list items, with the facts derived from their text. */
+function taskListItems(
+  taskBlocks: Block[],
+  pageById: ReadonlyMap<string, Page>,
+): TaskListItem[] {
+  return taskBlocks.flatMap((block) => {
+    const page = pageById.get(block.pageId);
+    if (!page) return [];
+    return [
+      {
+        block,
+        page,
+        dueDate: taskDueDate(block.text),
+        hasPageLink: taskHasPageLink(block.text),
+        time: taskTime(block.text),
+      },
+    ];
+  });
+}
+
+/**
+ * Completed (DONE) tasks whose due date falls in the daily titles
+ * [start, end), for the calendar. The date link is a page reference, so the
+ * refs index finds the candidates; the due-date rule (first daily link)
+ * decides, since a task can link several dates.
+ */
+export function getDoneTasks(
+  store: Store,
+  range: { start: string; end: string },
+): DoneTasksPayload {
+  const candidates = store.db
+    .selectDistinct({ block: blocks })
+    .from(tasks)
+    .innerJoin(blocks, eq(tasks.blockId, blocks.id))
+    .innerJoin(refs, eq(refs.blockId, blocks.id))
+    .innerJoin(pages, eq(refs.pageId, pages.id))
+    .where(
+      and(
+        eq(tasks.state, 'DONE'),
+        gte(pages.title, range.start),
+        lt(pages.title, range.end),
+      ),
+    )
+    .all()
+    .map((row) => row.block);
+  const done = candidates.filter((block) => {
+    const date = taskDueDate(block.text);
+    return date !== null && date >= range.start && date < range.end;
+  });
+  const pageIds = [...new Set(done.map((block) => block.pageId))];
+  const pageById = new Map(
+    pageIds.length === 0
+      ? []
+      : store.db
+          .select()
+          .from(pages)
+          .where(inArray(pages.id, pageIds))
+          .all()
+          .map((page) => [page.id, page] as const),
+  );
+  return { tasks: taskListItems(done, pageById) };
 }
 
 /** SQLite GLOB for date-shaped titles; isDailyTitle stays the source of truth. */
