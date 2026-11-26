@@ -81,11 +81,11 @@ export function CalendarTaskSidebar({
           portalContainer={portalContainer}
         />
       </div>
-      <p className="px-3 pb-2 text-xs text-muted-foreground">
-        {draggable
-          ? 'Drag a task onto the calendar, or click it and then a slot.'
-          : 'Tap a task, then a slot to schedule it.'}
-      </p>
+      {!draggable && (
+        <p className="px-3 pb-2 text-xs text-muted-foreground">
+          Tap a task, then a slot to schedule it.
+        </p>
+      )}
       <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto px-1 pb-4">
         {tasks.length === 0 ? (
           <p className="px-2 text-sm text-muted-foreground">

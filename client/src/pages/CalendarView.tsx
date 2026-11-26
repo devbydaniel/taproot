@@ -297,7 +297,7 @@ export function CalendarView() {
           </div>
         </div>
         {!narrow && sidebarOpen && (
-          <aside className="ml-3 w-64 shrink-0 border-l pt-1 pl-1">
+          <aside className="ml-3 w-80 shrink-0 border-l pt-1 pl-1">
             {sidebar()}
           </aside>
         )}
