@@ -3,8 +3,10 @@ import {
   assignTaskPage,
   parseTask,
   rescheduleTask as rescheduleTaskText,
+  scheduleTask as scheduleTaskText,
   withTaskState,
   type Op,
+  type TaskTime,
 } from '@taproot/shared';
 import { generateKeyBetween } from 'fractional-indexing';
 import { nanoid } from 'nanoid';
@@ -74,24 +76,28 @@ document.addEventListener('visibilitychange', () => {
  * the following sibling, its date link advanced. Only the checkbox recurs —
  * Mod-Enter cycling stays a plain text edit, so accidental cycles don't
  * multiply tasks. Un-toggling DONE does not retract a spawned instance.
+ * Returns the spawned instance's id (null when none), so views whose task
+ * membership comes from a fetch can show it before the next refetch.
  */
-export function toggleTaskCheckbox(blockId: string) {
+export function toggleTaskCheckbox(blockId: string): string | null {
   const { blocks } = useStore.getState();
   const block = blocks[blockId];
-  if (!block) return;
+  if (!block) return null;
   const parsed = parseTask(block.text);
-  if (!parsed) return;
+  if (!parsed) return null;
   const completing = parsed.state === 'TODO';
   const text = withTaskState(block.text, completing ? 'DONE' : 'TODO');
   flushText();
   const ops: Op[] = [{ type: 'update_text', id: blockId, text }];
   const nextText = completing ? advanceRecurringTask(block.text) : null;
+  let nextId: string | null = null;
   if (nextText !== null) {
+    nextId = nanoid();
     const siblings = siblingsOf(blocks, block);
     const index = siblings.findIndex((b) => b.id === blockId);
     ops.push({
       type: 'create_block',
-      id: nanoid(),
+      id: nextId,
       pageId: block.pageId,
       parentId: block.parentId,
       orderKey: generateKeyBetween(
@@ -102,6 +108,7 @@ export function toggleTaskCheckbox(blockId: string) {
     });
   }
   dispatch(ops);
+  return nextId;
 }
 
 /**
@@ -115,6 +122,24 @@ export function rescheduleTask(blockId: string, title: string | null) {
   if (text === block.text) return;
   flushText();
   dispatch([{ type: 'update_text', id: blockId, text }]);
+}
+
+/**
+ * Calendar move/resize: put the task on `title` at `time` (null = date-only).
+ * One update_text op; false when the text is already scheduled that way.
+ */
+export function scheduleTask(
+  blockId: string,
+  title: string,
+  time: TaskTime | null,
+): boolean {
+  const block = useStore.getState().blocks[blockId];
+  if (!block) return false;
+  const text = scheduleTaskText(block.text, title, time);
+  if (text === block.text) return false;
+  flushText();
+  dispatch([{ type: 'update_text', id: blockId, text }]);
+  return true;
 }
 
 /**

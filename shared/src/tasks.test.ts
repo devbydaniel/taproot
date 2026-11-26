@@ -9,6 +9,7 @@ import {
   formatTimeToken,
   parseTimeToken,
   rescheduleTask,
+  scheduleTask,
   setTaskTime,
   taskDueDate,
   taskHasPageLink,
@@ -283,6 +284,46 @@ describe('rescheduleTask', () => {
     );
     expect(rescheduleTask('TODO x [[2026-08-01]]', null)).toBe('TODO x');
     expect(rescheduleTask('TODO plain', null)).toBe('TODO plain');
+  });
+});
+
+describe('scheduleTask', () => {
+  const tenToEleven = { start: 600, end: 660 };
+
+  it('moves date and time in one rewrite', () => {
+    expect(
+      scheduleTask(
+        'TODO x [[2026-08-01]] <14:00-15:00> end',
+        '2026-08-02',
+        tenToEleven,
+      ),
+    ).toBe('TODO x [[2026-08-02]] <10:00-11:00> end');
+  });
+
+  it('adds date and time to an unscheduled task', () => {
+    expect(scheduleTask('TODO x', '2026-08-02', tenToEleven)).toBe(
+      'TODO x [[2026-08-02]] <10:00-11:00>',
+    );
+  });
+
+  it('makes a timed task date-only with a null time', () => {
+    expect(
+      scheduleTask(
+        'TODO x [[2026-08-01]] <14:00-15:00> end',
+        '2026-08-03',
+        null,
+      ),
+    ).toBe('TODO x [[2026-08-03]] end');
+  });
+
+  it('keeps a recurrence token and other text untouched', () => {
+    expect(
+      scheduleTask(
+        'TODO standup [[Team]] [[2026-08-01]] <every week>',
+        '2026-08-01',
+        tenToEleven,
+      ),
+    ).toBe('TODO standup [[Team]] [[2026-08-01]] <10:00-11:00> <every week>');
   });
 });
 

@@ -8,6 +8,7 @@ import { api } from '@/lib/api';
 import { installPages, installPinFolders } from '@/lib/offline/sync';
 import { RightPaneProvider, useRightPane } from '@/lib/rightPane';
 import { startWs } from '@/lib/ws';
+import { CalendarView } from '@/pages/CalendarView';
 import { JournalView } from '@/pages/JournalView';
 import { PagesView } from '@/pages/PagesView';
 import { PageView } from '@/pages/PageView';
@@ -55,6 +56,7 @@ function AppWorkspace() {
               <Route path="/journal" component={JournalView} />
               <Route path="/pages" component={PagesView} />
               <Route path="/tasks" component={TasksView} />
+              <Route path="/calendar" component={CalendarView} />
               <Route path="/p/:id">
                 {(params) => <PageView key={params.id} id={params.id} />}
               </Route>

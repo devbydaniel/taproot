@@ -203,3 +203,54 @@
   background: var(--accent);
   color: var(--accent-foreground);
 }
+
+/* FullCalendar (calendar view): themed only through the design tokens, so
+   light and dark follow the app; scoped to the view's wrapper */
+.taproot-calendar .fc {
+  --fc-small-font-size: 0.75rem;
+  --fc-page-bg-color: var(--background);
+  --fc-neutral-bg-color: var(--muted);
+  --fc-neutral-text-color: var(--muted-foreground);
+  --fc-border-color: var(--border);
+  --fc-event-bg-color: color-mix(
+    in oklab,
+    var(--primary) 16%,
+    var(--background)
+  );
+  --fc-event-border-color: var(--primary);
+  --fc-event-text-color: var(--foreground);
+  --fc-event-selected-overlay-color: color-mix(
+    in oklab,
+    var(--foreground) 8%,
+    transparent
+  );
+  --fc-highlight-color: color-mix(in oklab, var(--primary) 12%, transparent);
+  --fc-today-bg-color: color-mix(in oklab, var(--primary) 5%, transparent);
+  --fc-now-indicator-color: var(--destructive);
+  font-size: 0.875rem;
+}
+.taproot-calendar .fc .fc-col-header-cell-cushion,
+.taproot-calendar .fc .fc-timegrid-axis-cushion,
+.taproot-calendar .fc .fc-timegrid-slot-label-cushion {
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+.taproot-calendar .fc .fc-day-today .fc-col-header-cell-cushion {
+  color: var(--primary);
+  font-weight: 600;
+}
+/* task blocks: a tinted card with a brand-coloured leading edge */
+.taproot-calendar .fc .taproot-task {
+  border-width: 0 0 0 3px;
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+  cursor: pointer;
+}
+.taproot-calendar .fc .taproot-task.fc-timegrid-event {
+  box-shadow: 0 0 0 1px var(--fc-page-bg-color);
+}
+/* the day view is a single (today) column; the today tint would only be noise */
+.taproot-calendar .fc .fc-timeGridDay-view .fc-day-today {
+  background: transparent;
+}

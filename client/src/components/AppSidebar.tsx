@@ -1,5 +1,6 @@
 import {
   BookOpen,
+  CalendarDays,
   FileText,
   ListTodo,
   Moon,
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
   { href: '/journal', label: 'Journal', icon: BookOpen },
   { href: '/pages', label: 'Pages', icon: FileText },
   { href: '/tasks', label: 'Tasks', icon: ListTodo },
+  { href: '/calendar', label: 'Calendar', icon: CalendarDays },
 ] as const;
 
 /** offline / pending-sync indicator; renders nothing when all is well */

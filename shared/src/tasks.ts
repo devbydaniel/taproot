@@ -158,6 +158,20 @@ export function setTaskTime(text: string, time: TaskTime | null): string {
 }
 
 /**
+ * Put a task on a day and, optionally, a time: the date link goes through
+ * rescheduleTask, the time token through setTaskTime (null removes it, making
+ * the task date-only). Pure text surgery — callers ship the result as an
+ * ordinary update_text op.
+ */
+export function scheduleTask(
+  text: string,
+  title: string,
+  time: TaskTime | null,
+): string {
+  return setTaskTime(rescheduleTask(text, title), time);
+}
+
+/**
  * File a task under a page: append ` [[title]]`, unless the text already
  * links to that page (case-insensitive). Pure text surgery — callers ship the
  * result as an ordinary update_text op.
