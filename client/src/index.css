@@ -26,6 +26,8 @@
   --input: oklch(0.92 0.004 286.32);
   --ring: oklch(0.704 0.14 182.503);
   --link: oklch(0.511 0.096 186.391);
+  /* synced Google Calendar events (indigo), set apart from teal tasks */
+  --calendar-google: oklch(0.511 0.262 276.966);
   --radius: 0.625rem;
   --sidebar: oklch(1 0 0);
   --sidebar-foreground: oklch(0.141 0.005 285.823);
@@ -61,6 +63,7 @@
   --input: oklch(0.274 0.006 286.033);
   --ring: oklch(0.704 0.14 182.503);
   --link: oklch(0.777 0.152 181.912);
+  --calendar-google: oklch(0.673 0.182 276.935);
   /* sidebar sits slightly lighter than the background for the inset look */
   --sidebar: oklch(0.18 0.012 287);
   --sidebar-foreground: oklch(0.985 0 0);
@@ -240,15 +243,33 @@
   color: var(--primary);
   font-weight: 600;
 }
-/* task blocks: a tinted card with a brand-coloured leading edge */
-.taproot-calendar .fc .taproot-task {
+/* task blocks and Google events: a tinted card with a coloured leading edge */
+.taproot-calendar .fc :is(.taproot-task, .taproot-google) {
   border-width: 0 0 0 3px;
   border-radius: var(--radius-sm);
   box-shadow: none;
   cursor: pointer;
 }
-.taproot-calendar .fc .taproot-task.fc-timegrid-event {
+.taproot-calendar .fc :is(.taproot-task, .taproot-google).fc-timegrid-event {
   box-shadow: 0 0 0 1px var(--fc-page-bg-color);
+}
+/* Google events are read-only, in their own colour (the FullCalendar event
+   variables re-pointed per event); tentative ones fainter, edge dashed */
+.taproot-calendar .fc .taproot-google {
+  --fc-event-bg-color: color-mix(
+    in oklab,
+    var(--calendar-google) 14%,
+    var(--background)
+  );
+  --fc-event-border-color: var(--calendar-google);
+}
+.taproot-calendar .fc .taproot-google-tentative {
+  --fc-event-bg-color: color-mix(
+    in oklab,
+    var(--calendar-google) 5%,
+    var(--background)
+  );
+  border-left-style: dashed;
 }
 /* while a sidebar task waits for its slot, clicks and taps go through the
    existing blocks to the slot underneath (a phone's day view is all blocks) */

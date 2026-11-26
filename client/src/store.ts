@@ -34,6 +34,8 @@ interface OutlineState {
   openDocId: string | null;
   /** bumped whenever remote ops arrive, so views can refetch derived data (linked refs, sidebar) */
   remoteEpoch: number;
+  /** bumped when the synced Google calendar may have changed (server message, reconnect) */
+  calendarEpoch: number;
   /** driven by the WebSocket (open/close), not navigator.onLine */
   connectivity: 'online' | 'offline';
   /** queued write batches not yet confirmed by the server */
@@ -45,6 +47,7 @@ interface OutlineState {
   mergeBlocks: (blocks: Block[]) => void;
   applyOps: (ops: Op[]) => void;
   bumpRemoteEpoch: () => void;
+  bumpCalendarEpoch: () => void;
   setConnectivity: (connectivity: 'online' | 'offline') => void;
   setPendingCount: (pendingCount: number) => void;
   /** an offline-created page turned out to exist server-side under another id */
@@ -317,6 +320,7 @@ export const useStore = create<OutlineState>((set) => ({
   openDrawingId: null,
   openDocId: null,
   remoteEpoch: 0,
+  calendarEpoch: 0,
   connectivity: 'online',
   pendingCount: 0,
   setPages: (pages) => set({ pages }),
@@ -372,6 +376,8 @@ export const useStore = create<OutlineState>((set) => ({
     }),
   bumpRemoteEpoch: () =>
     set((state) => ({ remoteEpoch: state.remoteEpoch + 1 })),
+  bumpCalendarEpoch: () =>
+    set((state) => ({ calendarEpoch: state.calendarEpoch + 1 })),
   setConnectivity: (connectivity) => set({ connectivity }),
   setPendingCount: (pendingCount) => set({ pendingCount }),
   remapPageId: (from, to) =>

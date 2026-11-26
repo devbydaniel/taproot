@@ -16,6 +16,7 @@ import {
   taskDueDate,
   taskTime,
   type Block,
+  type CalendarEvent,
   type TaskTime,
 } from '@taproot/shared';
 
@@ -43,9 +44,23 @@ export function taskLabel(text: string): string {
     .trim();
 }
 
-export interface TaskEventProps {
+interface TaskEventProps {
+  kind: 'task';
   recurring: boolean;
 }
+
+interface GoogleEventProps {
+  kind: 'google';
+  /** where a click goes: the Meet link, else the event in Google Calendar */
+  link: string | null;
+  /** has a video call */
+  meet: boolean;
+}
+
+export type CalendarEventProps = TaskEventProps | GoogleEventProps;
+
+/** Google event ids get a prefix no block id (nanoid) can carry. */
+const GOOGLE_ID_PREFIX = 'google:';
 
 /** Local wall-clock ISO string; FullCalendar reads unzoned strings as local. */
 function localDateTime(date: string, minutes: number): string {
@@ -66,11 +81,13 @@ export function taskEvent(block: Block): EventInput | null {
   if (date === null) return null;
   const time = taskTime(block.text);
   const extendedProps: TaskEventProps = {
+    kind: 'task',
     recurring: findRecurrence(block.text) !== null,
   };
   const base = {
     id: block.id,
     title: taskLabel(block.text) || 'Untitled task',
+    classNames: ['taproot-task'],
     extendedProps,
   };
   if (time === null)
@@ -81,6 +98,50 @@ export function taskEvent(block: Block): EventInput | null {
     end: localDateTime(date, time.end),
     allDay: false,
   };
+}
+
+/**
+ * The calendar event for a synced Google event: read-only (never dragged or
+ * resized, timed or all-day), in its own colour. Timed events carry a Berlin
+ * offset, so FullCalendar places them at the right local time.
+ */
+export function googleEvent(event: CalendarEvent): EventInput {
+  const tentative = event.status === 'tentative';
+  const extendedProps: GoogleEventProps = {
+    kind: 'google',
+    link: event.meetLink ?? event.htmlLink,
+    meet: event.meetLink !== null,
+  };
+  return {
+    id: `${GOOGLE_ID_PREFIX}${event.id}`,
+    title: event.title || '(No title)',
+    start: event.start,
+    end: event.end,
+    allDay: event.allDay,
+    editable: false,
+    classNames: [
+      'taproot-google',
+      ...(tentative ? ['taproot-google-tentative'] : []),
+    ],
+    extendedProps,
+  };
+}
+
+const CLOCK = { hour: '2-digit', minute: '2-digit', hour12: false } as const;
+
+/**
+ * When the calendar last synced, for the status indicator: the clock time
+ * today, the date and time before that.
+ */
+export function formatSyncTime(at: number, now: Date = new Date()): string {
+  const date = new Date(at);
+  return formatDailyTitle(date) === formatDailyTitle(now)
+    ? date.toLocaleTimeString(undefined, CLOCK)
+    : date.toLocaleString(undefined, {
+        ...CLOCK,
+        month: 'short',
+        day: 'numeric',
+      });
 }
 
 export interface SlotSchedule {

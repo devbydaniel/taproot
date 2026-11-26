@@ -2,7 +2,6 @@ import type {
   CalendarApi,
   DatesSetArg,
   EventClickArg,
-  EventContentArg,
   EventDropArg,
 } from '@fullcalendar/core';
 import interactionPlugin, {
@@ -12,9 +11,14 @@ import interactionPlugin, {
 } from '@fullcalendar/interaction';
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
-import type { Block, TaskListItem } from '@taproot/shared';
+import {
+  formatDailyTitle,
+  type Block,
+  type CalendarSyncStatus,
+  type TaskListItem,
+} from '@taproot/shared';
 import { useHotkey } from '@tanstack/react-hotkeys';
-import { ChevronLeft, ChevronRight, ListTodo, Repeat } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ListTodo } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation } from 'wouter';
 import { scheduleTask, toggleTaskCheckbox } from '@/actions';
@@ -23,6 +27,8 @@ import {
   CalendarTaskSidebar,
   SIDEBAR_TASK_ATTR,
 } from '@/components/CalendarTaskSidebar';
+import { CalendarEventContent } from '@/components/CalendarEventContent';
+import { CalendarSyncIndicator } from '@/components/CalendarSyncIndicator';
 import { PageShell } from '@/components/layout/PageShell';
 import { Button } from '@/components/ui/button';
 import {
@@ -31,6 +37,7 @@ import {
   SheetDescription,
   SheetTitle,
 } from '@/components/ui/sheet';
+import { useGoogleEvents, type VisibleRange } from '@/hooks/use-google-events';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { api } from '@/lib/api';
 import {
@@ -40,7 +47,7 @@ import {
   slotSchedule,
   taskEvent,
   taskLabel,
-  type TaskEventProps,
+  type CalendarEventProps,
 } from '@/lib/calendar';
 import { installMergedBlocks } from '@/lib/offline/sync';
 import { useRightPane } from '@/lib/rightPane';
@@ -73,6 +80,8 @@ const TOUCH_QUERY = '(pointer: coarse)';
  * so they work offline and reach other clients like any edit. A sidebar of
  * open tasks (filtered by reference) schedules them: drag one onto a slot, or
  * pick it and then click/tap a slot (the only way on touch and phones).
+ * Synced Google events sit alongside, read-only; clicking one opens its Meet
+ * call or the event in Google Calendar.
  */
 export function CalendarView() {
   const [items, setItems] = useState<TaskListItem[] | null>(null);
@@ -88,6 +97,8 @@ export function CalendarView() {
   const [view, setView] = useState<{ title: string; type: string } | null>(
     null,
   );
+  const [range, setRange] = useState<VisibleRange | null>(null);
+  const google = useGoogleEvents(range);
   const narrow = useMediaQuery(NARROW_QUERY);
   const touch = useMediaQuery(TOUCH_QUERY);
   const tapOnly = narrow || touch;
@@ -131,12 +142,14 @@ export function CalendarView() {
   }, [items, spawned, blocks]);
 
   const events = useMemo(
-    () =>
-      taskBlocks.flatMap((block) => {
+    () => [
+      ...google.events,
+      ...taskBlocks.flatMap((block) => {
         const event = taskEvent(block);
         return event ? [event] : [];
       }),
-    [taskBlocks],
+    ],
+    [google.events, taskBlocks],
   );
 
   const openTasks = useMemo(
@@ -198,6 +211,11 @@ export function CalendarView() {
 
   const onEventClick = (info: EventClickArg) => {
     info.jsEvent.preventDefault();
+    const props = info.event.extendedProps as CalendarEventProps;
+    if (props.kind === 'google') {
+      if (props.link) window.open(props.link, '_blank', 'noopener,noreferrer');
+      return;
+    }
     const id = info.event.id;
     const target = info.jsEvent.target as Element;
     if (target.closest('[data-task-checkbox]')) {
@@ -227,6 +245,7 @@ export function CalendarView() {
 
   const actions = (
     <CalendarActions
+      syncStatus={google.status}
       calendar={calendar}
       viewType={view?.type}
       compact={narrow}
@@ -285,8 +304,7 @@ export function CalendarView() {
               eventTimeFormat={CLOCK_FORMAT}
               dayHeaderFormat={{ weekday: 'short', day: 'numeric' }}
               events={events}
-              eventClassNames="taproot-task"
-              eventContent={(arg) => <TaskEventContent arg={arg} />}
+              eventContent={(arg) => <CalendarEventContent arg={arg} />}
               // a task's time never spans midnight
               eventAllow={(span) =>
                 slotSchedule(span.start, span.end, span.allDay) !== null
@@ -296,10 +314,18 @@ export function CalendarView() {
               eventClick={onEventClick}
               dateClick={onDateClick}
               drop={onDrop}
-              datesSet={(arg: DatesSetArg) =>
-                setView({ title: arg.view.title, type: arg.view.type })
-              }
+              datesSet={(arg: DatesSetArg) => {
+                setView({ title: arg.view.title, type: arg.view.type });
+                setRange({
+                  start: formatDailyTitle(arg.start),
+                  end: formatDailyTitle(arg.end),
+                });
+              }}
             />
+          </div>
+          {/* phones (below md = NARROW_QUERY): the header has no room left */}
+          <div className="flex justify-end pt-1 empty:hidden md:hidden">
+            <CalendarSyncIndicator status={google.status} />
           </div>
         </div>
         {!narrow && sidebarOpen && (
@@ -317,14 +343,19 @@ export function CalendarView() {
   );
 }
 
-/** Header actions: task sidebar toggle, today/back/forward, view switch. */
+/**
+ * Header actions: Google sync state (not on phones), task sidebar toggle,
+ * today/back/forward, view switch.
+ */
 function CalendarActions({
+  syncStatus,
   calendar,
   viewType,
   compact,
   tasksOpen,
   onTasks,
 }: {
+  syncStatus: CalendarSyncStatus | null;
   calendar: () => CalendarApi | undefined;
   viewType: string | undefined;
   compact: boolean;
@@ -333,6 +364,7 @@ function CalendarActions({
 }) {
   return (
     <>
+      {!compact && <CalendarSyncIndicator status={syncStatus} />}
       <Button
         variant="ghost"
         size="icon"
@@ -487,35 +519,6 @@ function PickBanner({
       <Button variant="ghost" size="xs" onClick={onCancel}>
         Cancel
       </Button>
-    </div>
-  );
-}
-
-function TaskEventContent({ arg }: { arg: EventContentArg }) {
-  const { recurring } = arg.event.extendedProps as TaskEventProps;
-  return (
-    <div className="flex h-full min-w-0 items-start gap-1 overflow-hidden px-1 py-0.5 text-xs leading-4">
-      <button
-        type="button"
-        data-task-checkbox
-        title="Complete task"
-        aria-label={`Complete ${arg.event.title}`}
-        className="mt-px size-3 shrink-0 rounded-[3px] border border-primary bg-background hover:bg-primary/30"
-      />
-      <div className="min-w-0">
-        <div className="truncate font-medium">
-          {recurring && (
-            <Repeat
-              className="mr-0.5 inline size-2.5 align-[-1px]"
-              strokeWidth={2.5}
-            />
-          )}
-          {arg.event.title}
-        </div>
-        {arg.timeText && (
-          <div className="truncate text-muted-foreground">{arg.timeText}</div>
-        )}
-      </div>
     </div>
   );
 }

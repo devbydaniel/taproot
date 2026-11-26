@@ -1,4 +1,4 @@
-import type { OpsBroadcast } from '@taproot/shared';
+import type { ServerMessage } from '@taproot/shared';
 import { clientId } from './api';
 import { kickDrain } from './offline/sync';
 import { useStore } from '@/store';
@@ -22,14 +22,25 @@ function connect() {
     // it. Bump even if the drain didn't finish — snapshot installs overlay
     // still-pending ops, so a refetch can't clobber unsynced edits.
     void kickDrain().finally(() => useStore.getState().bumpRemoteEpoch());
+    // calendar broadcasts missed while disconnected: refetch the events too
+    useStore.getState().bumpCalendarEpoch();
   };
   ws.onmessage = (event) => {
     try {
-      const message = JSON.parse(event.data as string) as OpsBroadcast;
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- the cast is an assumption; the payload is unvalidated wire JSON
-      if (message.type !== 'ops' || message.clientId === clientId) return;
-      useStore.getState().applyOps(message.ops);
-      useStore.getState().bumpRemoteEpoch();
+      // unvalidated wire JSON: the cast is an assumption, so unknown types
+      // match no case and are ignored
+      const message = JSON.parse(event.data as string) as ServerMessage;
+      switch (message.type) {
+        case 'ops':
+          if (message.clientId === clientId) return;
+          useStore.getState().applyOps(message.ops);
+          useStore.getState().bumpRemoteEpoch();
+          break;
+        case 'calendar':
+          // the status it carries is refetched along with the events
+          useStore.getState().bumpCalendarEpoch();
+          break;
+      }
     } catch {
       // ignore malformed messages
     }

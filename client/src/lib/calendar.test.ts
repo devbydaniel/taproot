@@ -1,6 +1,8 @@
-import type { Block } from '@taproot/shared';
+import type { Block, CalendarEvent } from '@taproot/shared';
 import { describe, expect, it } from 'vitest';
 import {
+  formatSyncTime,
+  googleEvent,
   placeTask,
   sidebarReferenceOptions,
   sidebarTasks,
@@ -46,7 +48,8 @@ describe('taskEvent', () => {
     expect(taskEvent(block('TODO x [[2026-08-01]] <14:00-15:00>'))).toEqual({
       id: 'b1',
       title: 'x',
-      extendedProps: { recurring: false },
+      classNames: ['taproot-task'],
+      extendedProps: { kind: 'task', recurring: false },
       start: '2026-08-01T14:00',
       end: '2026-08-01T15:00',
       allDay: false,
@@ -81,6 +84,94 @@ describe('taskEvent', () => {
     expect(taskEvent(block('TODO [[2026-08-01]]'))?.title).toBe(
       'Untitled task',
     );
+  });
+});
+
+function google(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
+  return {
+    id: 'g1',
+    title: 'Standup',
+    start: '2026-08-03T09:00:00+02:00',
+    end: '2026-08-03T09:15:00+02:00',
+    allDay: false,
+    status: 'confirmed',
+    meetLink: 'https://meet.google.com/abc-defg-hij',
+    htmlLink: 'https://www.google.com/calendar/event?eid=g1',
+    ...overrides,
+  };
+}
+
+describe('googleEvent', () => {
+  it('is a read-only timed event that links to its Meet call', () => {
+    expect(googleEvent(google())).toEqual({
+      id: 'google:g1',
+      title: 'Standup',
+      start: '2026-08-03T09:00:00+02:00',
+      end: '2026-08-03T09:15:00+02:00',
+      allDay: false,
+      editable: false,
+      classNames: ['taproot-google'],
+      extendedProps: {
+        kind: 'google',
+        link: 'https://meet.google.com/abc-defg-hij',
+        meet: true,
+      },
+    });
+  });
+
+  it('links to the event in Google Calendar without a Meet link', () => {
+    expect(googleEvent(google({ meetLink: null })).extendedProps).toEqual({
+      kind: 'google',
+      link: 'https://www.google.com/calendar/event?eid=g1',
+      meet: false,
+    });
+    expect(
+      googleEvent(google({ meetLink: null, htmlLink: null })).extendedProps,
+    ).toMatchObject({ link: null });
+  });
+
+  it('puts all-day events in the all-day row, still read-only', () => {
+    expect(
+      googleEvent(
+        google({ start: '2026-08-03', end: '2026-08-05', allDay: true }),
+      ),
+    ).toMatchObject({
+      start: '2026-08-03',
+      end: '2026-08-05',
+      allDay: true,
+      editable: false,
+    });
+  });
+
+  it('marks tentative events and names untitled ones', () => {
+    const event = googleEvent(google({ status: 'tentative', title: '' }));
+    expect(event.title).toBe('(No title)');
+    expect(event.classNames).toEqual([
+      'taproot-google',
+      'taproot-google-tentative',
+    ]);
+  });
+});
+
+describe('formatSyncTime', () => {
+  const now = new Date(2026, 7, 3, 16, 0);
+
+  it('shows only the clock time for a sync today', () => {
+    const at = new Date(2026, 7, 3, 9, 5);
+    expect(formatSyncTime(at.getTime(), now)).toBe(
+      at.toLocaleTimeString(undefined, {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      }),
+    );
+  });
+
+  it('adds the date for an older sync', () => {
+    const at = new Date(2026, 7, 1, 9, 5);
+    const text = formatSyncTime(at.getTime(), now);
+    expect(text).not.toBe(formatSyncTime(at.getTime(), at));
+    expect(text).toContain(formatSyncTime(at.getTime(), at));
   });
 });
 
