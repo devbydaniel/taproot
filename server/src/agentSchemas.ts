@@ -266,7 +266,7 @@ const inputNodeSchema: z.ZodType<AgentInputNode> = z
       text: z
         .string()
         .describe(
-          "Single line of block text. May contain [[Page Title]] wikilinks, #tag or #[[multi word]] tags (linked pages auto-create), a leading 'TODO ' or 'DONE ' task marker, and an <every ...> recurrence rule (e.g. '<every 3 days>', '<every monday>').",
+          "Single line of block text. May contain [[Page Title]] wikilinks, #tag or #[[multi word]] tags (linked pages auto-create), a leading 'TODO ' or 'DONE ' task marker, an <every ...> recurrence rule (e.g. '<every 3 days>', '<every monday>'), and a <HH:MM> or <HH:MM-HH:MM> time (e.g. '<14:00>' = 14:00–14:30, '<09:15-10:45>'; only takes effect alongside a [[YYYY-MM-DD]] date link).",
         ),
       children: z
         .array(inputNodeSchema)

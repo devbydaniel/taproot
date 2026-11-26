@@ -2,6 +2,7 @@ import {
   isDailyTitle,
   taskDueDate,
   taskHasPageLink,
+  taskTime,
   type Block,
   type JournalPayload,
   type LinkedRefGroup,
@@ -274,6 +275,7 @@ export function getTaskList(store: Store): TasksPayload {
           page,
           dueDate: taskDueDate(block.text),
           hasPageLink: taskHasPageLink(block.text),
+          time: taskTime(block.text),
         },
       ];
     }),

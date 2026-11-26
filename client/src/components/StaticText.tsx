@@ -1,9 +1,11 @@
 import {
   dailyDisplayLabel,
-  findRecurrence,
+  findAngleTokens,
+  parseRecurrenceRule,
+  parseTimeToken,
   segmentText,
 } from '@taproot/shared';
-import { Hash, Repeat } from 'lucide-react';
+import { Clock, Hash, Repeat } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { api } from '@/lib/api';
 import { useRightPane } from '@/lib/rightPane';
@@ -44,24 +46,41 @@ function UrlLink({ url }: { url: string }) {
   );
 }
 
-/** Plain text run; a <every ...> recurrence token renders as a muted pill, raw text on hover. */
+/** Which pill a `<...>` token gets, if any: recurrence rules and task times. */
+function pillKind(content: string): 'recurrence' | 'time' | null {
+  if (parseRecurrenceRule(content)) return 'recurrence';
+  if (parseTimeToken(content)) return 'time';
+  return null;
+}
+
+/**
+ * Plain text run; <every ...> recurrence and <HH:MM> time tokens render as
+ * muted pills, raw text on hover. Other angle brackets stay prose.
+ */
 function TextRun({ value }: { value: string }) {
-  const recurrence = findRecurrence(value);
-  if (!recurrence) return <span>{value}</span>;
-  const raw = value.slice(recurrence.from, recurrence.to);
-  return (
-    <span>
-      {value.slice(0, recurrence.from)}
+  const tokens = findAngleTokens(value, pillKind);
+  if (tokens.length === 0) return <span>{value}</span>;
+  const parts: React.ReactNode[] = [];
+  let last = 0;
+  for (const token of tokens) {
+    if (token.from > last) parts.push(value.slice(last, token.from));
+    const raw = value.slice(token.from, token.to);
+    const Icon = token.value === 'time' ? Clock : Repeat;
+    const label = raw.slice(1, -1).trim();
+    parts.push(
       <span
+        key={token.from}
         title={raw}
         className="mx-0.5 inline-flex select-none items-center gap-1 rounded-sm bg-muted px-1 align-[2px] text-[11px] leading-4 text-muted-foreground/80"
       >
-        <Repeat className="h-2.5 w-2.5" strokeWidth={2.5} />
-        {raw.slice(1, -1).trim()}
-      </span>
-      {value.slice(recurrence.to)}
-    </span>
-  );
+        <Icon className="h-2.5 w-2.5" strokeWidth={2.5} />
+        {token.value === 'time' ? label.replace('-', '–') : label}
+      </span>,
+    );
+    last = token.to;
+  }
+  if (last < value.length) parts.push(value.slice(last));
+  return <span>{parts}</span>;
 }
 
 /** Rendered block text: page references and URLs become clickable, markup hidden. */

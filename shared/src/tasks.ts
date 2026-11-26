@@ -1,5 +1,6 @@
 import { isDailyTitle } from './daily.js';
-import type { Block, TaskListItem } from './types.js';
+import { cutToken, findAngleToken, type AngleToken } from './tokens.js';
+import type { Block, TaskListItem, TaskTime } from './types.js';
 import { findPageReferences } from './wikilinks.js';
 
 export type TaskState = 'TODO' | 'DONE';
@@ -65,6 +66,95 @@ export function rescheduleTask(text: string, title: string | null): string {
   }
   if (!link) return `${text} [[${title}]]`;
   return text.slice(0, link.titleFrom) + title + text.slice(link.titleTo);
+}
+
+/** Duration of a time token without an end: `<14:00>` means 14:00–14:30. */
+export const DEFAULT_TASK_MINUTES = 30;
+
+const DAY_MINUTES = 24 * 60;
+const TIME_TOKEN_RE = /^(\d{2}):(\d{2})(?:-(\d{2}):(\d{2}))?$/;
+
+function clockMinutes(hours: string, minutes: string): number | null {
+  const h = Number(hours);
+  const m = Number(minutes);
+  return h <= 23 && m <= 59 ? h * 60 + m : null;
+}
+
+/**
+ * Parse time-token content: "HH:MM" (default duration, cut off at midnight)
+ * or "HH:MM-HH:MM" with the end after the start on the same day. Null for
+ * anything else, so such tokens stay plain prose.
+ */
+export function parseTimeToken(content: string): TaskTime | null {
+  const match = TIME_TOKEN_RE.exec(content);
+  if (!match) return null;
+  const start = clockMinutes(match[1]!, match[2]!);
+  if (start === null) return null;
+  if (match[3] === undefined)
+    return { start, end: Math.min(start + DEFAULT_TASK_MINUTES, DAY_MINUTES) };
+  const end = clockMinutes(match[3], match[4]!);
+  return end !== null && end > start ? { start, end } : null;
+}
+
+/** First valid `<HH:MM>` / `<HH:MM-HH:MM>` token in the text, with its span. */
+export function findTimeToken(text: string): AngleToken<TaskTime> | null {
+  return findAngleToken(text, parseTimeToken);
+}
+
+/**
+ * A task's scheduled time: its first valid time token, but only when the task
+ * also has a date — a time without a daily link has no effect.
+ */
+export function taskTime(text: string): TaskTime | null {
+  if (!firstDailyLink(text)) return null;
+  return findTimeToken(text)?.value ?? null;
+}
+
+/** Minutes since midnight as "HH:MM" (1440 renders as "24:00"). */
+export function formatClock(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+/**
+ * The token text for a time, always as an explicit range. An end at midnight
+ * can't be written as a range ("24:00" is out of range): it is written as the
+ * short form when that parses back to the same time, else clamped to 23:59.
+ */
+export function formatTimeToken(time: TaskTime): string {
+  const { start, end } = time;
+  if (
+    !Number.isInteger(start) ||
+    !Number.isInteger(end) ||
+    start < 0 ||
+    end <= start ||
+    end > DAY_MINUTES
+  )
+    throw new RangeError(`invalid task time ${start}–${end}`);
+  if (end === DAY_MINUTES) {
+    if (start + DEFAULT_TASK_MINUTES >= DAY_MINUTES)
+      return `<${formatClock(start)}>`;
+    return `<${formatClock(start)}-23:59>`;
+  }
+  return `<${formatClock(start)}-${formatClock(end)}>`;
+}
+
+/**
+ * Rewrite a task's time: the first time token is replaced in place; without
+ * one, the token goes right after the first daily link, else at the end; null
+ * removes it. The date is untouched (see rescheduleTask). Pure text surgery —
+ * callers ship the result as an ordinary update_text op.
+ */
+export function setTaskTime(text: string, time: TaskTime | null): string {
+  const token = findTimeToken(text);
+  if (time === null) return token ? cutToken(text, token.from, token.to) : text;
+  const next = formatTimeToken(time);
+  if (token) return text.slice(0, token.from) + next + text.slice(token.to);
+  const link = firstDailyLink(text);
+  if (link) return `${text.slice(0, link.to)} ${next}${text.slice(link.to)}`;
+  const base = text.trimEnd();
+  return base === '' ? next : `${base} ${next}`;
 }
 
 /**

@@ -193,6 +193,14 @@ describe('advanceRecurringTask', () => {
     );
   });
 
+  it('keeps the time token on the next occurrence', () => {
+    const text = 'TODO standup [[2026-07-12]] <every week> <16:00-17:00>';
+    expect(findRecurrence(text)?.rule).toEqual({ unit: 'days', n: 7 });
+    expect(advanceRecurringTask(text, NOW)).toBe(
+      'TODO standup [[2026-07-19]] <every week> <16:00-17:00>',
+    );
+  });
+
   it('returns null for tasks without a rule', () => {
     expect(advanceRecurringTask('TODO one-off [[2026-07-12]]', NOW)).toBeNull();
   });

@@ -57,6 +57,16 @@ export interface LinkedRefGroup {
   blocks: Block[];
 }
 
+/**
+ * A task's time of day on its due date, in wall-clock minutes since midnight.
+ * start is 0–1439; end > start and at most 1440 (midnight, the day's end) —
+ * a time never spans into the next day.
+ */
+export interface TaskTime {
+  start: number;
+  end: number;
+}
+
 /** One open task for the Tasks page; date/link facts are derived from block text. */
 export interface TaskListItem {
   block: Block;
@@ -66,6 +76,8 @@ export interface TaskListItem {
   dueDate: string | null;
   /** text links to at least one non-daily page */
   hasPageLink: boolean;
+  /** the task's <HH:MM> / <HH:MM-HH:MM> time; null without one or without a dueDate */
+  time: TaskTime | null;
 }
 
 export interface TasksPayload {

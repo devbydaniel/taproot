@@ -1,10 +1,12 @@
 import {
   dailyDisplayLabel,
   daysUntilWeekday,
+  formatClock,
   formatDailyTitle,
   parseDailyTitle,
   shiftDailyTitle,
   taskDueDate,
+  taskTime,
   todayTitle,
   type Block,
 } from '@taproot/shared';
@@ -23,7 +25,8 @@ import { cn } from '@/lib/utils';
 /**
  * Clickable due-date chip on a task row: quick reschedules (Today / Tomorrow /
  * next Monday / Clear) plus a calendar. All picks are text rewrites of the
- * task's first daily link. Pass open/onOpenChange to control the popover from
+ * task's first daily link; a <HH:MM> time shows next to the date and is
+ * kept on reschedule. Pass open/onOpenChange to control the popover from
  * outside (keyboard triage); Escape handling then belongs to the controller.
  */
 export function TaskDatePill({
@@ -40,6 +43,7 @@ export function TaskDatePill({
   const isOpen = controlled ? open : internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
   const dueDate = taskDueDate(block.text);
+  const time = taskTime(block.text);
   const today = todayTitle();
   const overdue = dueDate !== null && dueDate < today;
 
@@ -80,6 +84,7 @@ export function TaskDatePill({
             )}
           >
             {dailyDisplayLabel(dueDate)}
+            {time && ` ${formatClock(time.start)}`}
           </button>
         )}
       </PopoverTrigger>

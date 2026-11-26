@@ -239,6 +239,24 @@ describe('agentSetTaskState', () => {
     const open = agentTasks(store);
     expect(open.groups).toHaveLength(0);
   });
+
+  it('the next instance of a recurring task keeps its time token', () => {
+    const now = new Date('2026-07-12T10:00');
+    const out = ok(
+      agentAppend(store, {
+        page: 'Team',
+        blocks: [
+          { text: 'TODO standup [[2026-07-12]] <every week> <16:00-17:00>' },
+        ],
+      }),
+    );
+    const done = ok(
+      agentSetTaskState(store, out.result.created[0]!.id, 'DONE', now),
+    );
+    expect(done.result.spawned?.text).toBe(
+      'TODO standup [[2026-07-19]] <every week> <16:00-17:00>',
+    );
+  });
 });
 
 describe('agentUpdateText', () => {

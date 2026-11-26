@@ -8,6 +8,7 @@ import {
   WEEKDAY_NAMES,
 } from './daily.js';
 import { firstDailyLink } from './tasks.js';
+import { findAngleToken } from './tokens.js';
 
 export type RecurrenceRule =
   | { unit: 'days'; n: number }
@@ -57,8 +58,6 @@ export function parseRecurrenceRule(spec: string): RecurrenceRule | null {
   return matchSimpleUnit(rest) ?? matchWeekdayRule(rest) ?? matchMonthly(rest);
 }
 
-const TOKEN_RE = /<([^<>\n]+)>/g;
-
 export interface Recurrence {
   from: number;
   to: number;
@@ -70,12 +69,8 @@ export interface Recurrence {
  * Angle brackets around anything else stay plain prose.
  */
 export function findRecurrence(text: string): Recurrence | null {
-  for (const match of text.matchAll(TOKEN_RE)) {
-    const rule = parseRecurrenceRule(match[1]!);
-    if (rule)
-      return { from: match.index, to: match.index + match[0].length, rule };
-  }
-  return null;
+  const token = findAngleToken(text, parseRecurrenceRule);
+  return token && { from: token.from, to: token.to, rule: token.value };
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -150,8 +145,9 @@ export function nextOccurrence(
 
 /**
  * Text of the next instance of a recurring task: the first daily link advances
- * to the rule's next occurrence (appended when there is none). Null when the
- * text carries no recurrence rule — the caller treats the task as one-off.
+ * to the rule's next occurrence (appended when there is none); everything else,
+ * the <HH:MM> time token included, carries over unchanged. Null when the text
+ * carries no recurrence rule — the caller treats the task as one-off.
  */
 export function advanceRecurringTask(
   text: string,

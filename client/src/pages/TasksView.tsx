@@ -7,6 +7,7 @@ import {
   shiftDailyTitle,
   taskDueDate,
   taskHasPageLink,
+  taskTime,
   todayTitle,
   type TaskListItem,
 } from '@taproot/shared';
@@ -85,6 +86,7 @@ export function TasksView() {
               block,
               dueDate: taskDueDate(block.text),
               hasPageLink: taskHasPageLink(block.text),
+              time: taskTime(block.text),
             },
           ]
         : [];

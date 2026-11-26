@@ -5,6 +5,7 @@ export * from './pinTree.js';
 export * from './recurrence.js';
 export * from './referenceFilter.js';
 export * from './tasks.js';
+export * from './tokens.js';
 export * from './types.js';
 export * from './wikilinks.js';
 export * from './youtube.js';

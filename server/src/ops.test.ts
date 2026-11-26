@@ -657,6 +657,19 @@ describe('getTaskList', () => {
     });
   });
 
+  it('exposes the time token of dated tasks only', () => {
+    const home = setupPage('Home');
+    applyOps(store, [
+      block('t1', home.id, 'TODO call [[2026-08-01]] <14:00>'),
+      block('t2', home.id, 'TODO call <14:00>'),
+      block('t3', home.id, 'TODO call [[2026-08-01]] <25:00>'),
+    ]);
+
+    expect(itemById('t1')?.time).toEqual({ start: 840, end: 870 });
+    expect(itemById('t2')?.time).toBeNull();
+    expect(itemById('t3')?.time).toBeNull();
+  });
+
   it('derives the date from block text, not the page the task lives on', () => {
     const day = setupPage('2026-07-10');
     applyOps(store, [block('t1', day.id, 'TODO call dentist')]);

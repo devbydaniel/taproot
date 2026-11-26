@@ -4,6 +4,7 @@ import {
   parseTask,
   taskDueDate,
   taskHasPageLink,
+  taskTime,
   todayTitle,
   type Block,
   type TaskListItem,
@@ -84,6 +85,7 @@ export function DailyAgenda({
       block,
       dueDate: taskDueDate(block.text),
       hasPageLink: taskHasPageLink(block.text),
+      time: taskTime(block.text),
     };
   });
   const pageBlocks = Object.values(blocks).filter((b) => b.pageId === pageId);
