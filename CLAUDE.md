@@ -11,6 +11,7 @@ npm run typecheck           # tsc -p shared, server, client
 npm run format              # prettier
 npm run build               # client → client/dist, served by server in prod
 npm run db:generate -w server   # regenerate migrations after editing schema.ts
+npm run calendar:token -w server   # mint the Google calendar refresh token (OAuth loopback flow)
 ```
 
 ## Layout
@@ -22,6 +23,7 @@ npm run db:generate -w server   # regenerate migrations after editing schema.ts
   - `ops.ts` — write path: op interpreter + derived-index upkeep
   - `queries.ts` — read path: returns payload types from `shared/`
   - `index.ts` — routes + WebSocket broadcast, no logic
+  - `calendarSync.ts` — read-only mirror of a Google calendar into `calendar_events` (every 5 min, today −7 … +56 days); `google.ts` is its HTTP client, `berlinTime.ts` its Europe/Berlin date math. Off unless `TAPROOT_GOOGLE_CLIENT_ID`, `TAPROOT_GOOGLE_CLIENT_SECRET` and `TAPROOT_GOOGLE_REFRESH_TOKEN` are set (`TAPROOT_GOOGLE_CALENDAR_ID` defaults to `primary`)
 - `client/` — Vite + React 19 + Tailwind 4 (design tokens in `index.css` — all colors/spacing come from there, never hardcode), zustand store, CodeMirror 6.
   - `src/components/ui/` — vendored shadcn/ui components (excluded from eslint/jscpd/knip; edit freely but keep diffs against upstream minimal)
   - `src/components/layout/` — `PageShell` + `ContentHeader`: every route renders inside this frame (breadcrumb crumbs + actions slot); don't reinvent page scaffolding
@@ -32,13 +34,15 @@ The one big architectural rule. `Op` shapes are defined **once**, as zod schemas
 
 Flow: client applies ops optimistically (`client/src/actions.ts` → `dispatch`) → POST `/api/ops` → server validates with `opsRequestSchema.safeParse` at the boundary → `applyOps` runs them in one transaction → broadcast over `/ws` → other clients apply them (clients ignore their own echo via `clientId`).
 
+`/ws` carries `ServerMessage` (`shared/src/types.ts`): `OpsBroadcast` plus `CalendarBroadcast` (`type: 'calendar'`, sent when the cached Google events or the sync state change — refetch `/api/calendar/events`). Clients switch on `type` and ignore types they don't know.
+
 - IDs are **client-generated** (nanoid). Sibling order is **fractional-index strings** (`fractional-indexing`), never integers.
 - Text updates are debounced 400 ms in `actions.ts`; structural ops must call `flushText()` first to preserve op ordering.
 - Task state changes are plain `update_text` ops — never a separate write path.
 
 ## Invariants — do not break
 
-1. **All writes go through `applyOps`** (`server/src/ops.ts`). Never INSERT/UPDATE tables from anywhere else (`reindexTasks` is the one documented exception).
+1. **All writes go through `applyOps`** (`server/src/ops.ts`). Never INSERT/UPDATE tables from anywhere else. Two documented exceptions: `reindexTasks`, and `calendarSync.ts`, the only writer of `calendar_events`/`calendar_sync` — an external cache of Google data, not user content. Store only the fields already in `calendar_events` (no descriptions, no attendees).
 2. **`refs` and `tasks` are derived state**, recomputed from block text on every create/update and rebuilt at startup by `reindexTasks`. Never written from `queries.ts`, never hand-edited. Block text is the source of truth.
 3. **Wikilink syntax lives only in `shared/src/wikilinks.ts`**; task-marker syntax only in `shared/src/tasks.ts` (a block is a task iff its text starts with `TODO `/`DONE `). Referenced pages are auto-created (`ensurePage`).
 4. **`shared/` stays pure** — importing Node or server modules there breaks the client.

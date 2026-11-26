@@ -91,3 +91,33 @@ export const refs = sqliteTable(
     index('idx_refs_page').on(table.pageId),
   ],
 );
+
+// read-only cache of the Google calendar. Written only by calendarSync.ts —
+// an external mirror, not user content, so it bypasses applyOps (CLAUDE.md
+// invariant 1). Stores exactly these fields: no descriptions, no attendees.
+export const calendarEvents = sqliteTable(
+  'calendar_events',
+  {
+    // Google event id; recurring instances carry their own (singleEvents=true)
+    id: text('id').primaryKey(),
+    title: text('title').notNull(),
+    // epoch ms; all-day events start/end at Europe/Berlin midnight (end exclusive)
+    startAt: integer('start_at').notNull(),
+    endAt: integer('end_at').notNull(),
+    allDay: integer('all_day', { mode: 'boolean' }).notNull(),
+    status: text('status', { enum: ['confirmed', 'tentative'] }).notNull(),
+    meetLink: text('meet_link'),
+    htmlLink: text('html_link'),
+  },
+  (table) => [index('idx_calendar_events_start').on(table.startAt)],
+);
+
+// outcome of the sync attempts, one row per synced calendar id. Written only
+// by calendarSync.ts, alongside calendar_events.
+export const calendarSync = sqliteTable('calendar_sync', {
+  calendarId: text('calendar_id').primaryKey(),
+  lastSuccessAt: integer('last_success_at'),
+  // set by a failed attempt, cleared by the next successful one
+  lastError: text('last_error'),
+  lastErrorAt: integer('last_error_at'),
+});

@@ -46,6 +46,56 @@ export interface OpsBroadcast {
   ops: Op[];
 }
 
+/** Sent over /ws when the cached Google events or the sync state change; clients refetch their visible range. */
+export interface CalendarBroadcast {
+  type: 'calendar';
+  status: CalendarSyncStatus;
+}
+
+/** Every message the server sends over /ws; switch on `type` and ignore unknown ones. */
+export type ServerMessage = OpsBroadcast | CalendarBroadcast;
+
+/** One read-only event from the synced Google calendar. */
+export interface CalendarEvent {
+  /** Google event id (recurring instances have their own) */
+  id: string;
+  /** '' when the event has no title */
+  title: string;
+  /** all-day: YYYY-MM-DD; timed: ISO 8601 in Europe/Berlin with offset, e.g. 2026-11-26T14:00:00+01:00 */
+  start: string;
+  /** exclusive; same format as `start` */
+  end: string;
+  allDay: boolean;
+  status: 'confirmed' | 'tentative';
+  /** video-call link (Google Meet); null when the event has none */
+  meetLink: string | null;
+  /** the event in Google Calendar */
+  htmlLink: string | null;
+}
+
+/**
+ * not_configured: no Google credentials, sync is off · pending: configured,
+ * no attempt finished yet · ok: the last attempt succeeded · error: the last
+ * attempt failed (the cache keeps the last successful state)
+ */
+export type CalendarSyncState = 'not_configured' | 'pending' | 'ok' | 'error';
+
+export interface CalendarSyncStatus {
+  state: CalendarSyncState;
+  /** epoch ms of the last successful sync; null = never */
+  lastSuccessAt: number | null;
+  /** message of the failed last attempt; null unless state is 'error' */
+  lastError: string | null;
+  /** epoch ms of that failed attempt */
+  lastErrorAt: number | null;
+}
+
+export interface CalendarEventsPayload {
+  /** events overlapping the requested range, by start */
+  events: CalendarEvent[];
+  status: CalendarSyncStatus;
+}
+
 /** One group of linked references: blocks on `page` whose text mentions the target page. */
 export interface LinkedRefGroup {
   page: Page;

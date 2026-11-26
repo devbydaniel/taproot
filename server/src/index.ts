@@ -1,13 +1,14 @@
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { createNodeWebSocket } from '@hono/node-ws';
-import type { OpsBroadcast } from '@taproot/shared';
+import type { ServerMessage } from '@taproot/shared';
 import { Hono } from 'hono';
 import type { WSContext } from 'hono/ws';
 import { existsSync } from 'node:fs';
 import { relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createApi } from './app.js';
+import { createCalendarSync, loadCalendarConfig } from './calendarSync.js';
 import { createStore } from './db.js';
 import { reindexTasks } from './ops.js';
 import { seedIfEmpty } from './seed.js';
@@ -24,7 +25,7 @@ const app = new Hono();
 const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app });
 
 const sockets = new Set<WSContext>();
-function broadcast(message: OpsBroadcast) {
+function broadcast(message: ServerMessage) {
   const payload = JSON.stringify(message);
   for (const socket of sockets) socket.send(payload);
 }
@@ -41,7 +42,15 @@ app.get(
   })),
 );
 
-app.route('/api', createApi(store, broadcast));
+// Google calendar mirror; off (tasks-only calendar) without credentials
+const calendarConfig = loadCalendarConfig(process.env);
+app.route(
+  '/api',
+  createApi(store, broadcast, calendarConfig?.calendarId ?? null),
+);
+if (calendarConfig) {
+  createCalendarSync(store, calendarConfig, { broadcast }).start();
+}
 
 // serve the built client when present (production / docker)
 const clientDist = fileURLToPath(new URL('../../client/dist', import.meta.url));

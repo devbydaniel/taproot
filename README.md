@@ -40,6 +40,25 @@ docker build -t taproot .
 docker run -p 3000:3000 -v taproot-data:/data taproot
 ```
 
+### Google Calendar (optional)
+
+The server can mirror one Google calendar, read-only, for the calendar view. Without these variables the sync is off and the calendar shows tasks only.
+
+| Variable                       |                                    |
+| ------------------------------ | ---------------------------------- |
+| `TAPROOT_GOOGLE_CLIENT_ID`     | OAuth client of type "Desktop app" |
+| `TAPROOT_GOOGLE_CLIENT_SECRET` | its secret                         |
+| `TAPROOT_GOOGLE_REFRESH_TOKEN` | minted once, see below             |
+| `TAPROOT_GOOGLE_CALENDAR_ID`   | optional, defaults to `primary`    |
+
+Mint the refresh token (scope `calendar.readonly`) through the browser consent flow; it is printed on stdout:
+
+```bash
+TAPROOT_GOOGLE_CLIENT_ID=… TAPROOT_GOOGLE_CLIENT_SECRET=… npm run calendar:token -w server
+```
+
+The server syncs at startup and every 5 minutes over today −7 to +56 days and keeps only id, title, start, end, all-day flag, status, Meet link and event link. `GET /api/calendar/events?start=YYYY-MM-DD&end=YYYY-MM-DD` (Berlin dates, end exclusive) returns the cached events plus the sync status.
+
 No auth built in — put it behind a reverse proxy (Authelia, basic auth, Tailscale) if exposed.
 
 Taproot is an installable PWA with full offline support: visited pages render from a local cache, and edits made offline queue in IndexedDB and replay when the server is reachable again. The service worker needs a secure context — serve over https (reverse proxy) or localhost; on plain http the app works, just without the offline shell.

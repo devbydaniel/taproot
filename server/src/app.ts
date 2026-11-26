@@ -1,10 +1,12 @@
 import { zValidator } from '@hono/zod-validator';
 import { opsRequestSchema, type OpsBroadcast } from '@taproot/shared';
 import { Hono } from 'hono';
+import { z } from 'zod';
 import { createAgentApi } from './agentApi.js';
 import type { Store } from './db.js';
 import { applyOps, ensurePage, saveDocMarkdown } from './ops.js';
 import {
+  getCalendarEvents,
   getDocMarkdown,
   getPagePayload,
   getTaskList,
@@ -16,14 +18,37 @@ import {
 // matches the update_data op's z.string().max(2_000_000) bound
 const MAX_DOC_BYTES = 2_000_000;
 
+// Berlin dates, end exclusive; a year bounds the response size
+const calendarRangeSchema = z
+  .object({ start: z.iso.date(), end: z.iso.date() })
+  .refine(({ start, end }) => {
+    const days = (Date.parse(end) - Date.parse(start)) / 86_400_000;
+    return days > 0 && days <= 366;
+  });
+
 // routes must stay chained on one expression: hc<ApiType> infers the client
-// from the accumulated type, and separate `api.get(...)` statements lose it
+// from the accumulated type, and separate `api.get(...)` statements lose it.
+// calendarId: the synced Google calendar; null = sync not configured
 export function createApi(
   store: Store,
   broadcast: (message: OpsBroadcast) => void,
+  calendarId: string | null = null,
 ) {
   return new Hono()
     .get('/pages', (c) => c.json(listPages(store), 200))
+    .get(
+      '/calendar/events',
+      zValidator('query', calendarRangeSchema, (result, c) => {
+        if (!result.success) {
+          return c.json(
+            { error: 'expected ?start=YYYY-MM-DD&end=YYYY-MM-DD' },
+            400,
+          );
+        }
+      }),
+      (c) =>
+        c.json(getCalendarEvents(store, calendarId, c.req.valid('query')), 200),
+    )
     .get('/pin-folders', (c) => c.json(listPinFolders(store), 200))
     .get('/tasks', (c) => c.json(getTaskList(store), 200))
     .get('/pages/by-title/:title', (c) => {

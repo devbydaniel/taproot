@@ -1,5 +1,8 @@
 import {
   isDailyTitle,
+  type CalendarEvent,
+  type CalendarEventsPayload,
+  type CalendarSyncStatus,
   taskDueDate,
   taskHasPageLink,
   taskTime,
@@ -12,9 +15,18 @@ import {
   type TasksPayload,
   type ZoomPayload,
 } from '@taproot/shared';
-import { and, asc, desc, eq, gte, inArray, lt, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, gte, inArray, lt, sql } from 'drizzle-orm';
+import { berlinDate, berlinIso, berlinMidnight } from './berlinTime.js';
 import type { Store } from './db.js';
-import { blocks, pages, pinFolders, refs, tasks } from './schema.js';
+import {
+  blocks,
+  calendarEvents,
+  calendarSync,
+  pages,
+  pinFolders,
+  refs,
+  tasks,
+} from './schema.js';
 
 export function listPages(store: Store) {
   return store.db.select().from(pages).orderBy(asc(pages.title)).all();
@@ -422,4 +434,74 @@ export function getZoomPayload(
     block,
     blocks: collectSubtree(childrenMap(pageBlocks), block),
   };
+}
+
+/** Sync outcome for the configured calendar; null calendarId = sync is off. */
+export function getCalendarSyncStatus(
+  store: Store,
+  calendarId: string | null,
+): CalendarSyncStatus {
+  if (calendarId === null) {
+    return {
+      state: 'not_configured',
+      lastSuccessAt: null,
+      lastError: null,
+      lastErrorAt: null,
+    };
+  }
+  const row = store.db
+    .select()
+    .from(calendarSync)
+    .where(eq(calendarSync.calendarId, calendarId))
+    .get();
+  if (!row) {
+    return {
+      state: 'pending',
+      lastSuccessAt: null,
+      lastError: null,
+      lastErrorAt: null,
+    };
+  }
+  return {
+    state: row.lastError === null ? 'ok' : 'error',
+    lastSuccessAt: row.lastSuccessAt,
+    lastError: row.lastError,
+    lastErrorAt: row.lastErrorAt,
+  };
+}
+
+/**
+ * Cached Google events overlapping the Berlin dates [start, end) plus the
+ * sync status. Empty until the configured calendar has synced once, so a
+ * cache left by credentials since removed (or another calendar id) never shows.
+ */
+export function getCalendarEvents(
+  store: Store,
+  calendarId: string | null,
+  range: { start: string; end: string },
+): CalendarEventsPayload {
+  const status = getCalendarSyncStatus(store, calendarId);
+  if (status.lastSuccessAt === null) return { events: [], status };
+  const rows = store.db
+    .select()
+    .from(calendarEvents)
+    .where(
+      and(
+        lt(calendarEvents.startAt, berlinMidnight(range.end)),
+        gt(calendarEvents.endAt, berlinMidnight(range.start)),
+      ),
+    )
+    .orderBy(asc(calendarEvents.startAt), asc(calendarEvents.id))
+    .all();
+  const events = rows.map((row): CalendarEvent => ({
+    id: row.id,
+    title: row.title,
+    start: row.allDay ? berlinDate(row.startAt) : berlinIso(row.startAt),
+    end: row.allDay ? berlinDate(row.endAt) : berlinIso(row.endAt),
+    allDay: row.allDay,
+    status: row.status,
+    meetLink: row.meetLink,
+    htmlLink: row.htmlLink,
+  }));
+  return { events, status };
 }
