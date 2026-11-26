@@ -162,6 +162,14 @@ function TaskRow({
 }) {
   const label = taskLabel(block.text) || 'Untitled task';
   const recurring = findRecurrence(block.text) !== null;
+  // Dated tasks show the pill below the title so the title keeps the row's
+  // width; undated ones keep the small schedule button on the right.
+  const dated = taskDueDate(block.text) !== null;
+  const pill = (
+    <OwnClicks>
+      <TaskDatePill block={block} />
+    </OwnClicks>
+  );
   return (
     <div
       {...{ [SIDEBAR_TASK_ATTR]: block.id }}
@@ -198,10 +206,9 @@ function TaskRow({
           />
         )}
         {label}
+        {dated && <div className="flex pb-0.5">{pill}</div>}
       </div>
-      <OwnClicks>
-        <TaskDatePill block={block} />
-      </OwnClicks>
+      {!dated && pill}
     </div>
   );
 }
