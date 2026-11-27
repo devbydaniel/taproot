@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.23.1](https://github.com/devbydaniel/taproot/compare/taproot-v0.23.0...taproot-v0.23.1) (2026-11-27)
+
+
+### Bug Fixes
+
+* stop treating [#1234](https://github.com/devbydaniel/taproot/issues/1234) issue numbers as page tags ([b6565e8](https://github.com/devbydaniel/taproot/commit/b6565e8e19281a345bab91922de531e62688d297))
+
 ## [0.23.0](https://github.com/devbydaniel/taproot/compare/taproot-v0.22.0...taproot-v0.23.0) (2026-11-26)
 
 
