@@ -1,7 +1,11 @@
+import { isDailyTitle } from './daily.js';
+
 const PAGE_REFERENCE =
   /(?<![\p{L}\p{N}_/#=?&])#(?:\[\[([^[\]\n]+?)\]\]|([\p{L}\p{N}_](?:[\p{L}\p{N}_-]*[\p{L}\p{N}_])?))|\[\[([^[\]\n]+?)\]\]/gu;
 const SINGLE_TAG_TITLE = /^[\p{L}\p{N}_](?:[\p{L}\p{N}_-]*[\p{L}\p{N}_])?$/u;
 const INVALID_TAG_PRECEDER = /[\p{L}\p{N}_/#=?&]/u;
+/** #1234 and #12-14 are issue/PR numbers, not pages; #2026-11-26 stays a date tag. */
+const NUMBER_TAG = /^[\d_-]+$/u;
 
 export interface PageReference {
   type: 'link' | 'tag';
@@ -64,6 +68,12 @@ export function findPageReferences(text: string): PageReference[] {
     const untrimmedTitle = multiTagTitle ?? singleTagTitle ?? linkTitle!;
     const title = untrimmedTitle.trim();
     if (!title) continue;
+    if (
+      singleTagTitle !== undefined &&
+      NUMBER_TAG.test(title) &&
+      !isDailyTitle(title)
+    )
+      continue;
     const markupLength =
       type === 'link' ? 2 : multiTagTitle === undefined ? 1 : 3;
     references.push({

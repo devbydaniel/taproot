@@ -256,3 +256,16 @@ describe('segmentText', () => {
     ]);
   });
 });
+
+describe('number tags', () => {
+  it('treats #1234 and #12-14 as plain text, not page references', () => {
+    expect(findPageReferences('opened #2516 and #1037-1039')).toEqual([]);
+  });
+
+  it('keeps date tags and tags with letters', () => {
+    const titles = findPageReferences('#2026-11-26 #1on1 #[[1234]]').map(
+      (reference) => reference.title,
+    );
+    expect(titles).toEqual(['2026-11-26', '1on1', '1234']);
+  });
+});
